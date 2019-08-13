@@ -31,10 +31,6 @@ var endpoints = []func(config config.Config, control Controller, router *jwt_htt
 func Start(config config.Config, control Controller) (err error) {
 	log.Println("start api")
 	router := jwt_http_router.New(jwt_http_router.JwtConfig{PubRsa: config.JwtPubRsa, ForceAuth: config.ForceAuth, ForceUser: config.ForceUser})
-	log.Println("add heart beat endpoint")
-	router.GET("/", func(writer http.ResponseWriter, request *http.Request, params jwt_http_router.Params, jwt jwt_http_router.Jwt) {
-		writer.WriteHeader(http.StatusOK)
-	})
 	for _, e := range endpoints {
 		log.Println("add endpoints: " + runtime.FuncForPC(reflect.ValueOf(e).Pointer()).Name())
 		e(config, control, router)

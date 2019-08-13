@@ -42,6 +42,7 @@ type Config struct {
 	MongoTable             string `json:"mongo_table"`
 	MongoProcessCollection string `json:"mongo_process_collection"`
 	Debug                  bool   `json:"debug"`
+	ConnectivityTest       bool   `json:"connectivity_test"`
 }
 
 //loads config from json in location and used environment variables (e.g ZookeeperUrl --> ZOOKEEPER_URL)
