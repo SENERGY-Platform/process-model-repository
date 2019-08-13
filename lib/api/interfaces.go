@@ -26,6 +26,6 @@ type Controller interface {
 	ReadAllPublicProcess() ([]model.Process, error, int)
 	PublishProcessCreate(jwt jwt_http_router.Jwt, process model.Process) (model.Process, error, int)
 	PublishProcessUpdate(jwt jwt_http_router.Jwt, id string, process model.Process) (model.Process, error, int)
-	PublishProcessPublicUpdate(jwt jwt_http_router.Jwt, id string, public bool) (model.Process, error, int)
+	PublishProcessPublicUpdate(jwt jwt_http_router.Jwt, id string, public model.PublicCommand) (model.Process, error, int)
 	PublishProcessDelete(jwt jwt_http_router.Jwt, id string) (error, int)
 }

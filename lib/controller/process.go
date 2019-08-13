@@ -66,6 +66,7 @@ func (this *Controller) PublishProcessCreate(jwt jwt_http_router.Jwt, process mo
 	if err != nil {
 		return result, err, http.StatusBadRequest
 	}
+	process.Owner = jwt.UserId
 	err = this.producer.PublishProcessPut(process.Id, jwt.UserId, process)
 	if err != nil {
 		return result, err, http.StatusInternalServerError
@@ -74,19 +75,21 @@ func (this *Controller) PublishProcessCreate(jwt jwt_http_router.Jwt, process mo
 }
 
 func (this *Controller) PublishProcessUpdate(jwt jwt_http_router.Jwt, id string, process model.Process) (result model.Process, err error, code int) {
-	err = process.Validate()
-	if err != nil {
-		return result, err, http.StatusBadRequest
-	}
 	if process.Id != id {
 		return result, errors.New("path id != process.id"), http.StatusBadRequest
 	}
-	access, err := this.security.CheckBool(jwt, this.config.ProcessTopic, id, model.WRITE)
+	old, err, code := this.ReadProcess(jwt, id, model.WRITE)
 	if err != nil {
-		return result, err, http.StatusInternalServerError
+		return result, err, code
 	}
-	if !access {
-		return result, err, http.StatusForbidden
+	if old.Owner != "" {
+		process.Owner = old.Owner
+	} else {
+		process.Owner = jwt.UserId
+	}
+	err = process.Validate()
+	if err != nil {
+		return result, err, http.StatusBadRequest
 	}
 	err = this.producer.PublishProcessPut(process.Id, jwt.UserId, process)
 	if err != nil {
@@ -95,22 +98,20 @@ func (this *Controller) PublishProcessUpdate(jwt jwt_http_router.Jwt, id string,
 	return process, nil, http.StatusOK
 }
 
-func (this *Controller) PublishProcessPublicUpdate(jwt jwt_http_router.Jwt, id string, public bool) (result model.Process, err error, code int) {
-	ctx, _ := context.WithTimeout(context.Background(), TIMEOUT)
-	process, exists, err := this.db.ReadProcess(ctx, id)
+func (this *Controller) PublishProcessPublicUpdate(jwt jwt_http_router.Jwt, id string, publicCommand model.PublicCommand) (result model.Process, err error, code int) {
+	process, err, code := this.ReadProcess(jwt, id, model.WRITE)
 	if err != nil {
-		return result, err, http.StatusInternalServerError
+		return result, err, code
 	}
-	if !exists {
-		return result, errors.New("not found"), http.StatusNotFound
+
+	process.Publish = publicCommand.Publish
+	process.PublishDate = time.Now()
+	if process.Publish {
+		process.Description = publicCommand.Description
+	} else {
+		process.Description = ""
 	}
-	access, err := this.security.CheckBool(jwt, this.config.ProcessTopic, id, model.WRITE)
-	if err != nil {
-		return result, err, http.StatusInternalServerError
-	}
-	if !access {
-		return result, err, http.StatusForbidden
-	}
+
 	err = this.producer.PublishProcessPut(process.Id, jwt.UserId, process)
 	if err != nil {
 		return result, err, http.StatusInternalServerError
