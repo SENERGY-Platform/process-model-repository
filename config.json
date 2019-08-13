@@ -1,0 +1,16 @@
+{
+    "server_port": "8080",
+    "jwt_pub_rsa": "",
+    "force_auth": true,
+    "force_user": true,
+    "log_level": "CALL",
+    "process_topic": "processmodel",
+    "permissions_url": "http://permissionsearch:8080",
+    "mongo_url": "mongodb://localhost:27017",
+    "mongo_table": "process-repository",
+    "mongo_process_collection": "process",
+    "mongo_repl_set": false,
+    "zookeeper_url": "zk:2181",
+    "group_id": "process-model-repository",
+    "debug": true
+}
