@@ -26,7 +26,7 @@ import (
 )
 
 const processIdFieldName = "Id"
-const processPublicFieldName = "Id"
+const processPublicFieldName = "Publish"
 
 var processIdKey string
 var processPublicKey string
@@ -44,7 +44,7 @@ func init() {
 
 	CreateCollections = append(CreateCollections, func(db *Mongo) error {
 		collection := db.client.Database(db.config.MongoTable).Collection(db.config.MongoProcessCollection)
-		err = db.ensureIndex(collection, "processidindex", processIdKey, true, true)
+		//err = db.ensureIndex(collection, "processidindex", processIdKey, true, true)
 		if err != nil {
 			return err
 		}

@@ -105,7 +105,7 @@ func (this *Controller) PublishProcessPublicUpdate(jwt jwt_http_router.Jwt, id s
 	}
 
 	process.Publish = publicCommand.Publish
-	process.PublishDate = time.Now()
+	process.PublishDate = time.Now().String()
 	if process.Publish {
 		process.Description = publicCommand.Description
 	} else {
