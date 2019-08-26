@@ -14,6 +14,8 @@ func init() {
 	endpoints = append(endpoints, HealthEndpoints)
 }
 
+const connectivityTestToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjb25uZWN0aXZpdHktdGVzdCJ9.OnihzQ7zwSq0l1Za991SpdsxkktfrdlNl-vHHpYpXQw"
+
 func HealthEndpoints(config config.Config, control Controller, router *jwt_http_router.Router) {
 	router.POST("/health", func(writer http.ResponseWriter, request *http.Request, params jwt_http_router.Params, jwt jwt_http_router.Jwt) {
 		msg, err := ioutil.ReadAll(request.Body)
@@ -29,7 +31,19 @@ func HealthEndpoints(config config.Config, control Controller, router *jwt_http_
 				client := http.Client{
 					Timeout: 5 * time.Second,
 				}
-				resp, err := client.Post("http://localhost:"+config.ServerPort+"/health", "application/json", bytes.NewBuffer([]byte("local connection test: "+t.String())))
+
+				req, err := http.NewRequest(
+					"POST",
+					"http://localhost:"+config.ServerPort+"/health",
+					bytes.NewBuffer([]byte("local connection test: "+t.String())),
+				)
+
+				if err != nil {
+					log.Fatal("FATAL: connection test unable to build request:", err)
+				}
+				req.Header.Set("Authorization", connectivityTestToken)
+
+				resp, err := client.Do(req)
 				if err != nil {
 					log.Fatal("FATAL: connection test:", err)
 				}
