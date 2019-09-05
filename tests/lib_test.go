@@ -66,7 +66,7 @@ func TestMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	port, err := getFreePort()
 	if err != nil {
@@ -105,7 +105,7 @@ func TestMigration(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	var p3 model.Process
-	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/process", map[string]interface{}{"svgXML": "svg3", "process": map[string]map[string]map[string]string{"definitions": {"process": {"_id": "p3"}}}}, &p3)
+	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/processes", map[string]interface{}{"svgXML": "svg3", "process": map[string]map[string]map[string]string{"definitions": {"process": {"_id": "p3"}}}}, &p3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestMigration(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	var p4 model.Process
-	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/process", map[string]interface{}{"svgXML": "svg4", "process": map[string]map[string]map[string]string{"definitions": {"process": {"_id": "p4"}}}}, &p4)
+	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/processes", map[string]interface{}{"svgXML": "svg4", "process": map[string]map[string]map[string]string{"definitions": {"process": {"_id": "p4"}}}}, &p4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestMigration(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	var p4c model.Process
-	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/process/"+p4.Id+"/publish", model.PublicCommand{Publish: true, Description: "publish_description4"}, &p4c)
+	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/processes/"+p4.Id+"/publish", model.PublicCommand{Publish: true, Description: "publish_description4"}, &p4c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestMigration(t *testing.T) {
 
 	for _, p := range []model.Process{p1, p2, p3, p4c} {
 		r := model.Process{}
-		err = userjwt.GetJSON("http://localhost:"+conf.ServerPort+"/process/"+p.Id, &r)
+		err = userjwt.GetJSON("http://localhost:"+conf.ServerPort+"/processes/"+p.Id, &r)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -146,7 +146,7 @@ func TestMigration(t *testing.T) {
 	}
 
 	list := []model.Process{}
-	err = userjwt.GetJSON("http://localhost:"+conf.ServerPort+"/process", &list)
+	err = userjwt.GetJSON("http://localhost:"+conf.ServerPort+"/processes", &list)
 	if err != nil {
 		t.Fatal(err)
 	}

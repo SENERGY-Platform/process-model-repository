@@ -30,7 +30,7 @@ func init() {
 }
 
 func ProcessEndpoints(config config.Config, control Controller, router *jwt_http_router.Router) {
-	resource := "/process"
+	resource := "/processes"
 
 	//use 'p' query parameter to limit selection to a permission;
 	//		used internally to guarantee that user has needed permission for the resource
