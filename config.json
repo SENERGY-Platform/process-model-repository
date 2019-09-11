@@ -12,5 +12,6 @@
     "mongo_repl_set": false,
     "zookeeper_url": "zk:2181",
     "group_id": "process-model-repository",
-    "debug": true
+    "debug": true,
+    "connectivity_test": true
 }
