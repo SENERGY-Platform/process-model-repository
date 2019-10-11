@@ -86,6 +86,8 @@ func InitTopicWithConfig(zkUrl string, numPartitions int, replicationFactor int,
 			NumPartitions:     numPartitions,
 			ReplicationFactor: replicationFactor,
 			ConfigEntries: []kafka.ConfigEntry{
+				{ConfigName: "retention.ms", ConfigValue: "-1"},
+				{ConfigName: "retention.bytes", ConfigValue: "-1"},
 				{ConfigName: "cleanup.policy", ConfigValue: "compact"},
 				{ConfigName: "delete.retention.ms", ConfigValue: "100"},
 				{ConfigName: "segment.ms", ConfigValue: "100"},
