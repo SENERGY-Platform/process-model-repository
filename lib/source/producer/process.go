@@ -61,6 +61,7 @@ func (this *Producer) PublishProcessCommand(cmd ProcessCommand) error {
 		},
 	)
 	if err != nil {
+		log.Println("ERROR:", err)
 		debug.PrintStack()
 	}
 	return err

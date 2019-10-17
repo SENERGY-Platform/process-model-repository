@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/SENERGY-Platform/process-model-repository/lib"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
@@ -16,19 +15,13 @@ import (
 	"time"
 )
 
-func TestMigration(t *testing.T) {
+func Test(t *testing.T) {
 	conf, err := config.Load("../config.json")
 	if err != nil {
 		log.Fatal("ERROR: unable to load config", err)
 	}
 
 	pool, err := dockertest.NewPool("")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	amqpCloser, _, amqpIp, err := Amqp(pool)
-	defer amqpCloser()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,12 +53,6 @@ func TestMigration(t *testing.T) {
 	defer permsearch.Close()
 	conf.PermissionsUrl = permsearch.URL
 
-	repoCloser, _, oldHost, err := OldProcessRepo(pool, "amqp://guest:guest@"+amqpIp+":5672/", conf.MongoUrl, conf.PermissionsUrl)
-	defer repoCloser()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	time.Sleep(10 * time.Second)
 
 	port, err := getFreePort()
@@ -80,32 +67,14 @@ func TestMigration(t *testing.T) {
 	}
 	defer stop()
 
-	var p1 model.Process
-	err = userjwt.PostJSON("http://"+oldHost+":8081/process", map[string]interface{}{"svgXML": "svg1", "process": map[string]map[string]map[string]string{"definitions": {"process": {"_id": "p1"}}}}, &p1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	time.Sleep(5 * time.Second)
-
-	var p2 model.Process
-	err = userjwt.PostJSON("http://"+oldHost+":8081/process", map[string]interface{}{"svgXML": "svg2", "process": map[string]map[string]map[string]string{"definitions": {"process": {"_id": "p2"}}}}, &p2)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	//time.Sleep(5 * time.Second)
-	//
-	//var p2c model.Process
-	//err = userjwt.PostJSON("http://"+oldHost+":8081/process/"+p2.Id+"/publish", model.PublicCommand{Publish: true, Description: "publish_description2"}, &p2c)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-
-	time.Sleep(5 * time.Second)
+	time.Sleep(20 * time.Second)
 
 	var p3 model.Process
-	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/processes", map[string]interface{}{"svgXML": "svg3", "process": map[string]map[string]map[string]string{"definitions": {"process": {"_id": "p3"}}}}, &p3)
+	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/processes",
+		model.Process{
+			BpmnXml: createTestXmlString("p3"),
+			SvgXml:  "svg3",
+		}, &p3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +82,10 @@ func TestMigration(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	var p4 model.Process
-	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/processes", map[string]interface{}{"svgXML": "svg4", "process": map[string]map[string]map[string]string{"definitions": {"process": {"_id": "p4"}}}}, &p4)
+	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/processes", model.Process{
+		BpmnXml: createTestXmlString("p4"),
+		SvgXml:  "svg4",
+	}, &p4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +100,7 @@ func TestMigration(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 
-	for _, p := range []model.Process{p1, p2, p3, p4c} {
+	for _, p := range []model.Process{p3, p4c} {
 		r := model.Process{}
 		err = userjwt.GetJSON("http://localhost:"+conf.ServerPort+"/processes/"+p.Id, &r)
 		if err != nil {
@@ -140,7 +112,7 @@ func TestMigration(t *testing.T) {
 		if r.SvgXml != p.SvgXml {
 			t.Fatal(p, r)
 		}
-		if !reflect.DeepEqual(r.Process, p.Process) {
+		if r.BpmnXml != p.BpmnXml {
 			t.Fatal(p, r)
 		}
 	}
@@ -155,28 +127,50 @@ func TestMigration(t *testing.T) {
 		t.Fatal(list, "\n", p4c)
 	}
 
-	isStr, err := json.Marshal(p4c.Process)
-	if err != nil {
-		t.Fatal(err)
-	}
+	isStr := p4c.BpmnXml
+	wantStr := createTestXmlString("p4")
 
-	wantStr, err := json.Marshal(map[string]map[string]map[string]string{"definitions": {"process": {"_id": "p4"}}})
-	if err != nil {
-		t.Fatal(err)
+	if isStr != wantStr {
+		t.Fatal(isStr, "\n\n!=\n\n", wantStr)
 	}
+}
 
-	var a interface{}
-	var b interface{}
-	err = json.Unmarshal(isStr, &a)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = json.Unmarshal(wantStr, &b)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !reflect.DeepEqual(a, b) {
-		t.Fatal(a, b, string(isStr), string(wantStr))
-	}
+func createTestXmlString(processId string) (result string) {
+	return `<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane bpmnElement="testor" id="BPMNPlane_1">
+      <bpmndi:BPMNEdge bpmnElement="SequenceFlow_0r1kd9b" id="SequenceFlow_0r1kd9b_di">
+        <di:waypoint x="188" y="300"/>
+        <di:waypoint x="240" y="300"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="SequenceFlow_0w6aadb" id="SequenceFlow_0w6aadb_di">
+        <di:waypoint x="340" y="300"/>
+        <di:waypoint x="392" y="300"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape bpmnElement="StartEvent_1" id="_BPMNShape_StartEvent_2">
+        <dc:Bounds height="36" width="36" x="152" y="282"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_0xjre54" id="Task_0xjre54_di">
+        <dc:Bounds height="80" width="100" x="240" y="260"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="EndEvent_1bcd04k" id="EndEvent_1bcd04k_di">
+        <dc:Bounds height="36" width="36" x="392" y="282"/>
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmn:process id="` + processId + `" isExecutable="true">
+    <bpmn:endEvent id="EndEvent_1bcd04k">
+      <bpmn:incoming>SequenceFlow_0w6aadb</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="SequenceFlow_0r1kd9b" sourceRef="StartEvent_1" targetRef="Task_0xjre54"/>
+    <bpmn:sequenceFlow id="SequenceFlow_0w6aadb" sourceRef="Task_0xjre54" targetRef="EndEvent_1bcd04k"/>
+    <bpmn:startEvent id="StartEvent_1">
+      <bpmn:outgoing>SequenceFlow_0r1kd9b</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_0xjre54" name="Test">
+      <bpmn:incoming>SequenceFlow_0r1kd9b</bpmn:incoming>
+      <bpmn:outgoing>SequenceFlow_0w6aadb</bpmn:outgoing>
+    </bpmn:task>
+  </bpmn:process>
+</bpmn:definitions>`
 }

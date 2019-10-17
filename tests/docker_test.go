@@ -6,14 +6,12 @@ import (
 	"github.com/ory/dockertest"
 	"github.com/ory/dockertest/docker"
 	"github.com/segmentio/kafka-go"
-	"github.com/streadway/amqp"
 	"github.com/wvanbergen/kazoo-go"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"log"
 	"net"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -37,27 +35,6 @@ func MongoTestServer(pool *dockertest.Pool) (closer func(), hostPort string, ipA
 		return err
 	})
 	return func() { repo.Close() }, hostPort, repo.Container.NetworkSettings.IPAddress, err
-}
-
-func Amqp(pool *dockertest.Pool) (closer func(), hostPort string, ipAddress string, err error) {
-	log.Println("start rabbitmq")
-	rabbitmq, err := pool.Run("rabbitmq", "3-management", []string{})
-	if err != nil {
-		return func() {}, "", "", err
-	}
-	hostPort = rabbitmq.GetPort("5672/tcp")
-	err = pool.Retry(func() error {
-		log.Println("try amqp connection...")
-		conn, err := amqp.Dial("amqp://guest:guest@" + rabbitmq.Container.NetworkSettings.IPAddress + ":5672/")
-		if err != nil {
-			return err
-		}
-		defer conn.Close()
-		c, err := conn.Channel()
-		defer c.Close()
-		return err
-	})
-	return func() { rabbitmq.Close() }, hostPort, rabbitmq.Container.NetworkSettings.IPAddress, err
 }
 
 func KafkaContainer(pool *dockertest.Pool, zookeeperUrl string) (closer func(), err error) {
@@ -133,29 +110,6 @@ func ZookeeperContainer(pool *dockertest.Pool) (closer func(), hostPort string, 
 		return nil
 	})
 	return func() { zkContainer.Close() }, hostPort, zkContainer.Container.NetworkSettings.IPAddress, err
-}
-
-func OldProcessRepo(pool *dockertest.Pool, amqpUrl string, mongoUrl string, permUrl string) (closer func(), hostPort string, ipAddress string, err error) {
-	log.Println("start process repo")
-	repo, err := pool.Run("fgseitsrancher.wifa.intern.uni-leipzig.de:5000/process-repository", "dev", []string{
-		"MONGO=" + mongoUrl,
-		"AMQP_URL=" + amqpUrl,
-		"PERM_URL=" + permUrl,
-	})
-	if err != nil {
-		return func() {}, "", "", err
-	}
-
-	hostPort = repo.GetPort("8081/tcp")
-	err = pool.Retry(func() error {
-		log.Println("try repo connection...")
-		_, err := http.Get("http://" + repo.Container.NetworkSettings.IPAddress + ":8081/")
-		if err != nil {
-			log.Println(err)
-		}
-		return err
-	})
-	return func() { repo.Close() }, hostPort, repo.Container.NetworkSettings.IPAddress, err
 }
 
 func getFreePort() (int, error) {

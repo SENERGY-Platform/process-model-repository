@@ -5,6 +5,7 @@ go 1.12
 require (
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/SmartEnergyPlatform/jwt-http-router v0.0.0-20190722084820-0e1fe0dc7a07
+	github.com/beevik/etree v1.1.0
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/containerd/continuity v0.0.0-20190426062206-aaeac12a7ffc // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect

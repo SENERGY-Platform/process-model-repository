@@ -2,15 +2,18 @@ package model
 
 import (
 	"errors"
-	"go.mongodb.org/mongo-driver/bson"
+	"fmt"
+	"github.com/beevik/etree"
+	"log"
+	"runtime/debug"
 )
 
 type Process struct {
 	Id          string `json:"_id" bson:"_id"`
 	Date        int64  `json:"date" bson:"date"`
 	Owner       string `json:"owner" bson:"owner"`
-	Process     bson.M `json:"process" bson:"process"`
-	SvgXml      string `json:"svgXML" bson:"svgXML"`
+	BpmnXml     string `json:"bpmn_xml" bson:"bpmn_xml"`
+	SvgXml      string `json:"svg_xml" bson:"svg_xml"`
 	Publish     bool   `json:"publish" bson:"publish"`
 	PublishDate string `json:"publish_date" bson:"publish_date"`
 	Description string `json:"description" bson:"description"`
@@ -21,27 +24,28 @@ type PublicCommand struct {
 	Description string `json:"description"`
 }
 
-func (process *Process) Validate() error {
+func (process *Process) Validate() (err error) {
+	defer func() {
+		if r := recover(); r != nil && err == nil {
+			log.Printf("%s: %s", r, debug.Stack())
+			err = errors.New(fmt.Sprint("Recovered Error: ", r))
+		}
+	}()
 	if process.Id == "" {
 		return errors.New("missing id")
 	}
-	definitions, ok := process.Process["definitions"].(map[string]interface{})
-	if !ok {
-		return errors.New("unable to parse process")
+	doc := etree.NewDocument()
+	err = doc.ReadFromString(process.BpmnXml)
+	if err != nil {
+		return err
 	}
-	p, ok := definitions["process"].(map[string]interface{})
-	if !ok {
-		return errors.New("unable to parse process")
+	definition := doc.FindElement("//bpmn:process")
+	if process == nil {
+		return errors.New("missing process definition")
 	}
-
-	id, ok := p["_id"]
-	if !ok {
-		return errors.New("mission process definition id")
+	id := definition.SelectAttrValue("id", "")
+	if id == "" {
+		return errors.New("missing process definition id")
 	}
-	idStr, ok := id.(string)
-	if !ok || idStr == "" {
-		return errors.New("mission process definition id")
-	}
-
 	return nil
 }
