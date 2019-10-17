@@ -10,6 +10,7 @@ import (
 
 type Process struct {
 	Id          string `json:"_id" bson:"_id"`
+	Name        string `json:"name" bson:"name"`
 	Date        int64  `json:"date" bson:"date"`
 	Owner       string `json:"owner" bson:"owner"`
 	BpmnXml     string `json:"bpmn_xml" bson:"bpmn_xml"`
@@ -40,7 +41,7 @@ func (process *Process) Validate() (err error) {
 		return err
 	}
 	definition := doc.FindElement("//bpmn:process")
-	if process == nil {
+	if definition == nil {
 		return errors.New("missing process definition")
 	}
 	id := definition.SelectAttrValue("id", "")

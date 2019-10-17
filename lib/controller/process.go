@@ -19,10 +19,14 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/SENERGY-Platform/process-model-repository/lib/model"
 	jwt_http_router "github.com/SmartEnergyPlatform/jwt-http-router"
+	"github.com/beevik/etree"
 	uuid "github.com/satori/go.uuid"
+	"log"
 	"net/http"
+	"runtime/debug"
 	"time"
 )
 
@@ -62,6 +66,12 @@ func (this *Controller) ReadAllPublicProcess() (result []model.Process, err erro
 
 func (this *Controller) PublishProcessCreate(jwt jwt_http_router.Jwt, process model.Process) (result model.Process, err error, code int) {
 	process.Id = uuid.NewV4().String()
+	if process.Name == "" {
+		process.Name, err = this.GetProcessModelName(process.BpmnXml)
+		if err != nil {
+			return result, err, http.StatusBadRequest
+		}
+	}
 	err = process.Validate()
 	if err != nil {
 		return result, err, http.StatusBadRequest
@@ -77,6 +87,12 @@ func (this *Controller) PublishProcessCreate(jwt jwt_http_router.Jwt, process mo
 func (this *Controller) PublishProcessUpdate(jwt jwt_http_router.Jwt, id string, process model.Process) (result model.Process, err error, code int) {
 	if process.Id != id {
 		return result, errors.New("path id != process.id"), http.StatusBadRequest
+	}
+	if process.Name == "" {
+		process.Name, err = this.GetProcessModelName(process.BpmnXml)
+		if err != nil {
+			return result, err, http.StatusBadRequest
+		}
 	}
 	old, err, code := this.ReadProcess(jwt, id, model.WRITE)
 	if err != nil {
@@ -132,6 +148,29 @@ func (this *Controller) PublishProcessDelete(jwt jwt_http_router.Jwt, id string)
 		return err, http.StatusInternalServerError
 	}
 	return nil, http.StatusOK
+}
+
+func (this *Controller) GetProcessModelName(bpmn string) (name string, err error) {
+	defer func() {
+		if r := recover(); r != nil && err == nil {
+			log.Printf("%s: %s", r, debug.Stack())
+			err = errors.New(fmt.Sprint("Recovered Error: ", r))
+		}
+	}()
+	doc := etree.NewDocument()
+	err = doc.ReadFromString(bpmn)
+	if err != nil {
+		return "", err
+	}
+	definition := doc.FindElement("//bpmn:process")
+	if definition == nil {
+		return "", errors.New("missing process definition")
+	}
+	id := definition.SelectAttrValue("id", "")
+	if id == "" {
+		return "", errors.New("missing process definition id")
+	}
+	return id, nil
 }
 
 /////////////////////////
