@@ -13,7 +13,7 @@ type Process struct {
 	Date        int64  `json:"date" bson:"date"`
 	Owner       string `json:"owner" bson:"owner"`
 	BpmnXml     string `json:"bpmn_xml" bson:"bpmn_xml"`
-	SvgXml      string `json:"svg_xml" bson:"svg_xml"`
+	SvgXml      string `json:"svgXML" bson:"svgXML"`
 	Publish     bool   `json:"publish" bson:"publish"`
 	PublishDate string `json:"publish_date" bson:"publish_date"`
 	Description string `json:"description" bson:"description"`
