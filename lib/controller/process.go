@@ -162,15 +162,13 @@ func (this *Controller) GetProcessModelName(bpmn string) (name string, err error
 	if err != nil {
 		return "", err
 	}
-	definition := doc.FindElement("//bpmn:process")
-	if definition == nil {
-		return "", errors.New("missing process definition")
+
+	if len(doc.FindElements("//bpmn:collaboration")) > 0 {
+		name = doc.FindElement("//bpmn:collaboration").SelectAttrValue("id", "process-name")
+	} else {
+		name = doc.FindElement("//bpmn:process").SelectAttrValue("id", "process-name")
 	}
-	id := definition.SelectAttrValue("id", "")
-	if id == "" {
-		return "", errors.New("missing process definition id")
-	}
-	return id, nil
+	return name, nil
 }
 
 /////////////////////////
