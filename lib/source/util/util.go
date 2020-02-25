@@ -89,9 +89,9 @@ func InitTopicWithConfig(zkUrl string, numPartitions int, replicationFactor int,
 				{ConfigName: "retention.ms", ConfigValue: "-1"},
 				{ConfigName: "retention.bytes", ConfigValue: "-1"},
 				{ConfigName: "cleanup.policy", ConfigValue: "compact"},
-				{ConfigName: "delete.retention.ms", ConfigValue: "100"},
-				{ConfigName: "segment.ms", ConfigValue: "100"},
-				{ConfigName: "min.cleanable.dirty.ratio", ConfigValue: "0.01"},
+				{ConfigName: "delete.retention.ms", ConfigValue: "86400000"},
+				{ConfigName: "segment.ms", ConfigValue: "604800000"},
+				{ConfigName: "min.cleanable.dirty.ratio", ConfigValue: "0.1"},
 			},
 		})
 		if err != nil {
