@@ -1,60 +1,77 @@
 package topicconfig
 
 import (
-	"encoding/json"
-	"github.com/go-zookeeper/zk"
-	"time"
+	"errors"
+	"github.com/Shopify/sarama"
+	"github.com/wvanbergen/kazoo-go"
+	"io/ioutil"
+	"log"
 )
 
-func Ensure(zkUrl string, topic string, config map[string]string) (err error) {
-	c, _, err := zk.Connect([]string{zkUrl}, time.Second) //*10)
+func EnsureWithZk(zkUrl string, topic string, config map[string]string) (err error) {
+	controller, err := getKafkaController(zkUrl)
 	if err != nil {
+		log.Println("ERROR: unable to find controller", err)
 		return err
 	}
-	err = update(c, topic, config)
-	if err == zk.ErrNoNode {
-		err = Create(zkUrl, topic, 1, 1, config)
+	if controller == "" {
+		log.Println("ERROR: unable to find controller")
+		return errors.New("unable to find controller")
 	}
-	return err
+	return EnsureWithBroker(controller, topic, config)
 }
 
-func Update(zkUrl string, topic string, config map[string]string) (err error) {
-	c, _, err := zk.Connect([]string{zkUrl}, time.Second) //*10)
+func EnsureWithBroker(broker string, topic string, config map[string]string) (err error) {
+	sconfig := sarama.NewConfig()
+	sconfig.Version = sarama.V2_4_0_0
+	admin, err := sarama.NewClusterAdmin([]string{broker}, sconfig)
 	if err != nil {
 		return err
 	}
-	return update(c, topic, config)
-}
 
-func update(c *zk.Conn, topic string, config map[string]string) (err error) {
-	current, version, err := read(c, topic)
-	if err != nil {
-		return err
-	}
+	temp := map[string]*string{}
 	for key, value := range config {
-		current[key] = value
+		tempValue := value
+		temp[key] = &tempValue
 	}
-	err = set(c, topic, version, current)
-	return
-}
 
-func Set(zkUrl string, topic string, version int32, config map[string]string) (err error) {
-	c, _, err := zk.Connect([]string{zkUrl}, time.Second) //*10)
+	err = create(admin, topic, temp)
 	if err != nil {
-		return err
+		err = set(admin, topic, temp)
 	}
-	defer c.Close()
-	return set(c, topic, version, config)
-}
 
-func set(c *zk.Conn, topic string, version int32, config map[string]string) (err error) {
-	temp, err := json.Marshal(TopicConfigWrapper{
-		Version: version,
-		Config:  config,
-	})
-	if err != nil {
-		return err
-	}
-	_, err = c.Set(getTopicPath(topic), temp, -1)
 	return err
+}
+
+func set(admin sarama.ClusterAdmin, topic string, config map[string]*string) (err error) {
+	return admin.AlterConfig(sarama.TopicResource, topic, config, false)
+}
+
+func create(admin sarama.ClusterAdmin, topic string, config map[string]*string) (err error) {
+	return admin.CreateTopic(topic, &sarama.TopicDetail{
+		NumPartitions:     1,
+		ReplicationFactor: 1,
+		ConfigEntries:     config,
+	}, false)
+}
+
+func getKafkaController(zkUrl string) (controller string, err error) {
+	zookeeper := kazoo.NewConfig()
+	zookeeper.Logger = log.New(ioutil.Discard, "", 0)
+	zk, chroot := kazoo.ParseConnectionString(zkUrl)
+	zookeeper.Chroot = chroot
+	kz, err := kazoo.NewKazoo(zk, zookeeper)
+	if err != nil {
+		return controller, err
+	}
+	controllerId, err := kz.Controller()
+	if err != nil {
+		return controller, err
+	}
+	brokers, err := kz.Brokers()
+	kz.Close()
+	if err != nil {
+		return controller, err
+	}
+	return brokers[controllerId], err
 }

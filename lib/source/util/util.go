@@ -61,7 +61,7 @@ func GetKafkaController(zkUrl string) (controller string, err error) {
 
 func InitTopic(zkUrl string, topics ...string) (err error) {
 	for _, topic := range topics {
-		err = topicconfig.Ensure(zkUrl, topic, map[string]string{
+		err = topicconfig.EnsureWithZk(zkUrl, topic, map[string]string{
 			"retention.ms":              "-1",
 			"retention.bytes":           "-1",
 			"cleanup.policy":            "compact",
