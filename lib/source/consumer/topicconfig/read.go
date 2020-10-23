@@ -3,7 +3,6 @@ package topicconfig
 import (
 	"encoding/json"
 	"github.com/go-zookeeper/zk"
-	"log"
 	"time"
 )
 
@@ -22,7 +21,7 @@ func Read(zkUrl string, topic string) (config map[string]string, version int32, 
 }
 
 func read(c *zk.Conn, topic string) (config map[string]string, version int32, err error) {
-	temp, stat, err := c.Get(getTopicPath(topic))
+	temp, _, err := c.Get(getTopicPath(topic))
 	if err != nil {
 		return config, version, err
 	}
@@ -30,6 +29,5 @@ func read(c *zk.Conn, topic string) (config map[string]string, version int32, er
 	err = json.Unmarshal(temp, &wrapper)
 	version = wrapper.Version
 	config = wrapper.Config
-	log.Println("DEBUG version", wrapper.Version, stat.Version, stat.Cversion, stat.Aversion)
 	return
 }
