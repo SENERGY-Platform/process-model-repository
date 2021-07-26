@@ -17,8 +17,10 @@
 package producer
 
 import (
+	"context"
 	"errors"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
+	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
 	"github.com/SENERGY-Platform/process-model-repository/lib/source/util"
 	"github.com/segmentio/kafka-go"
 	"io/ioutil"
@@ -29,11 +31,10 @@ import (
 type Producer struct {
 	config  config.Config
 	process *kafka.Writer
-	hubs    *kafka.Writer
 }
 
-func New(conf config.Config) (*Producer, error) {
-	broker, err := util.GetBroker(conf.ZookeeperUrl)
+func New(ctx context.Context, conf config.Config) (*Producer, error) {
+	broker, err := util.GetBroker(conf.KafkaUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -44,6 +45,12 @@ func New(conf config.Config) (*Producer, error) {
 	if err != nil {
 		return nil, err
 	}
+	contextwg.Add(ctx, 1)
+	go func() {
+		<-ctx.Done()
+		log.Println("close kafka producer:", process.Close())
+		contextwg.Done(ctx)
+	}()
 	return &Producer{config: conf, process: process}, nil
 }
 
@@ -54,11 +61,13 @@ func getProducer(broker []string, topic string, debug bool) (writer *kafka.Write
 	} else {
 		logger = log.New(ioutil.Discard, "", 0)
 	}
-	writer = kafka.NewWriter(kafka.WriterConfig{
-		Brokers:     broker,
+	writer = &kafka.Writer{
+		Addr:        kafka.TCP(broker...),
 		Topic:       topic,
-		MaxAttempts: 10,
+		Async:       false,
 		Logger:      logger,
-	})
+		MaxAttempts: 10,
+		ErrorLogger: log.New(os.Stderr, "KAFKA", 0),
+	}
 	return writer, err
 }

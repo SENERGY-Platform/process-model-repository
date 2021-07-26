@@ -22,8 +22,6 @@ import (
 )
 
 type Database interface {
-	Disconnect()
-
 	ReadProcess(ctx context.Context, id string) (result model.Process, exists bool, err error)
 	ReadAllPublicProcesses(ctx context.Context) ([]model.Process, error)
 	SetProcess(ctx context.Context, process model.Process) error

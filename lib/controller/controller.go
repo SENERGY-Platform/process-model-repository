@@ -17,10 +17,8 @@
 package controller
 
 import (
-	"context"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/database"
-	"time"
 )
 
 func New(config config.Config, db database.Database, security Security, producer Producer) (ctrl *Controller, err error) {
@@ -38,12 +36,4 @@ type Controller struct {
 	security Security
 	producer Producer
 	config   config.Config
-}
-
-func (this *Controller) Stop() {
-	this.db.Disconnect()
-}
-
-func getTimeoutContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), 10*time.Second)
 }

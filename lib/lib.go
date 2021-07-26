@@ -17,6 +17,7 @@
 package lib
 
 import (
+	"context"
 	"github.com/SENERGY-Platform/process-model-repository/lib/api"
 	"github.com/SENERGY-Platform/process-model-repository/lib/com"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
@@ -27,52 +28,55 @@ import (
 	"log"
 )
 
-func Start(conf config.Config) (stop func(), err error) {
-	db, err := database.New(conf)
+/*
+Start initializes
+	kafka consumer
+	kafka producer
+	mongodb connection
+	api server
+
+on basectx.Done() all connections will be closed assync
+
+if context contains a waitgroup as value (github.com/SENERGY-Platform/process-model-repository/lib/contextwg)
+the waitgroup is informed about successfull close/disconnect
+*/
+func Start(basectx context.Context, conf config.Config) (err error) {
+	ctx, cancel := context.WithCancel(basectx)
+	defer func() {
+		if err != nil {
+			cancel()
+		}
+	}()
+	db, err := database.New(ctx, conf)
 	if err != nil {
 		log.Println("ERROR: unable to connect to database", err)
-		return stop, err
+		return err
 	}
 
 	perm, err := com.NewSecurity(conf)
 	if err != nil {
 		log.Println("ERROR: unable to create permission handler", err)
-		return stop, err
+		return err
 	}
 
-	p, err := producer.New(conf)
+	p, err := producer.New(ctx, conf)
 	if err != nil {
 		log.Println("ERROR: unable to create producer", err)
-		return stop, err
+		return err
 	}
 
 	ctrl, err := controller.New(conf, db, perm, p)
 	if err != nil {
-		db.Disconnect()
 		log.Println("ERROR: unable to start control", err)
-		return stop, err
+		return err
 	}
 
-	sourceStop, err := consumer.Start(conf, ctrl)
+	err = consumer.Start(ctx, conf, ctrl)
 	if err != nil {
-		db.Disconnect()
-		ctrl.Stop()
 		log.Println("ERROR: unable to start source", err)
-		return stop, err
+		return err
 	}
 
-	err = api.Start(conf, ctrl)
-	if err != nil {
-		sourceStop()
-		db.Disconnect()
-		ctrl.Stop()
-		log.Println("ERROR: unable to start api", err)
-		return stop, err
-	}
-
-	return func() {
-		sourceStop()
-		db.Disconnect()
-		ctrl.Stop()
-	}, err
+	api.Start(ctx, conf, ctrl)
+	return
 }

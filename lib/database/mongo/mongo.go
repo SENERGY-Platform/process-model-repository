@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
+	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
 	"github.com/satori/go.uuid"
 	"go.mongodb.org/mongo-driver/bson/bsoncodec"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -37,9 +38,9 @@ type Mongo struct {
 
 var CreateCollections = []func(db *Mongo) error{}
 
-func New(conf config.Config) (*Mongo, error) {
-	ctx, _ := getTimeoutContext()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(conf.MongoUrl))
+func New(ctx context.Context, conf config.Config) (*Mongo, error) {
+	timeout, _ := getTimeoutContext(ctx)
+	client, err := mongo.Connect(timeout, options.Client().ApplyURI(conf.MongoUrl))
 	if err != nil {
 		return nil, err
 	}
@@ -51,6 +52,13 @@ func New(conf config.Config) (*Mongo, error) {
 			return nil, err
 		}
 	}
+	contextwg.Add(ctx, 1)
+	go func() {
+		<-ctx.Done()
+		disconnectTimeout, _ := getTimeoutContext(context.Background())
+		log.Println("disconnect from mongodb:", client.Disconnect(disconnectTimeout))
+		contextwg.Done(ctx)
+	}()
 	return db, nil
 }
 
@@ -93,7 +101,7 @@ func (this *Mongo) Transaction(ctx context.Context) (resultCtx context.Context, 
 }
 
 func (this *Mongo) ensureIndex(collection *mongo.Collection, indexname string, indexKey string, asc bool, unique bool) error {
-	ctx, _ := getTimeoutContext()
+	ctx, _ := getTimeoutContext(context.Background())
 	var direction int32 = -1
 	if asc {
 		direction = 1
@@ -106,7 +114,7 @@ func (this *Mongo) ensureIndex(collection *mongo.Collection, indexname string, i
 }
 
 func (this *Mongo) ensureCompoundIndex(collection *mongo.Collection, indexname string, asc bool, unique bool, indexKeys ...string) error {
-	ctx, _ := getTimeoutContext()
+	ctx, _ := getTimeoutContext(context.Background())
 	var direction int32 = -1
 	if asc {
 		direction = 1
@@ -135,6 +143,6 @@ func getBsonFieldName(obj interface{}, fieldName string) (bsonName string, err e
 	return tags.Name, err
 }
 
-func getTimeoutContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), 10*time.Second)
+func getTimeoutContext(basectx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(basectx, 10*time.Second)
 }

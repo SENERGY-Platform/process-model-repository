@@ -33,7 +33,6 @@ type Config struct {
 	ForceUser              bool   `json:"force_user"`
 	LogLevel               string `json:"log_level"` //DEBUG | CALL | NONE
 	ServerPort             string `json:"server_port"`
-	ZookeeperUrl           string `json:"zookeeper_url"`
 	GroupId                string `json:"group_id"`
 	ProcessTopic           string `json:"process_topic"`
 	PermissionsUrl         string `json:"permissions_url"`
@@ -43,6 +42,7 @@ type Config struct {
 	MongoProcessCollection string `json:"mongo_process_collection"`
 	Debug                  bool   `json:"debug"`
 	ConnectivityTest       bool   `json:"connectivity_test"`
+	KafkaUrl               string `json:"kafka_url"`
 }
 
 //loads config from json in location and used environment variables (e.g ZookeeperUrl --> ZOOKEEPER_URL)

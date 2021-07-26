@@ -17,25 +17,20 @@
 package consumer
 
 import (
+	"context"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/source/consumer/listener"
 	"log"
 )
 
-func Start(config config.Config, control listener.Controller) (stop func(), err error) {
-	closer := []func(){}
-	stop = func() {
-		for _, c := range closer {
-			c()
-		}
-	}
+func Start(ctx context.Context, config config.Config, control listener.Controller) (err error) {
 	for _, factory := range listener.Factories {
 		topic, handler, err := factory(config, control)
 		if err != nil {
 			log.Println("ERROR: listener.factory", topic, err)
-			return stop, err
+			return err
 		}
-		consumer, err := NewConsumer(config.ZookeeperUrl, config.GroupId, topic, func(topic string, msg []byte) error {
+		_, err = NewConsumer(ctx, config.KafkaUrl, config.GroupId, topic, func(topic string, msg []byte) error {
 			if config.Debug {
 				log.Println("DEBUG: consume", topic, string(msg))
 			}
@@ -44,10 +39,8 @@ func Start(config config.Config, control listener.Controller) (stop func(), err 
 			log.Fatal(err)
 		})
 		if err != nil {
-			stop()
-			return stop, err
+			return err
 		}
-		closer = append(closer, consumer.Stop)
 	}
-	return stop, err
+	return err
 }

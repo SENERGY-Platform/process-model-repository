@@ -18,6 +18,7 @@ package consumer
 
 import (
 	"context"
+	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
 	"github.com/SENERGY-Platform/process-model-repository/lib/source/util"
 	"github.com/segmentio/kafka-go"
 	"io"
@@ -27,37 +28,35 @@ import (
 	"time"
 )
 
-func NewConsumer(zk string, groupid string, topic string, listener func(topic string, msg []byte) error, errorhandler func(err error, consumer *Consumer)) (consumer *Consumer, err error) {
-	consumer = &Consumer{groupId: groupid, zkUrl: zk, topic: topic, listener: listener, errorhandler: errorhandler}
+func NewConsumer(ctx context.Context, bootstrapUrl string, groupid string, topic string, listener func(topic string, msg []byte) error, errorhandler func(err error, consumer *Consumer)) (consumer *Consumer, err error) {
+	consumer = &Consumer{ctx: ctx, groupId: groupid, bootstrapUrl: bootstrapUrl, topic: topic, listener: listener, errorhandler: errorhandler}
 	err = consumer.start()
 	return
 }
 
 type Consumer struct {
 	count        int
-	zkUrl        string
+	bootstrapUrl string
 	groupId      string
 	topic        string
 	ctx          context.Context
-	cancel       context.CancelFunc
 	listener     func(topic string, msg []byte) error
 	errorhandler func(err error, consumer *Consumer)
 	mux          sync.Mutex
 }
 
-func (this *Consumer) Stop() {
-	this.cancel()
-}
-
 func (this *Consumer) start() error {
 	log.Println("DEBUG: consume topic: \"" + this.topic + "\"")
-	this.ctx, this.cancel = context.WithCancel(context.Background())
-	broker, err := util.GetBroker(this.zkUrl)
+	broker, err := util.GetBroker(this.bootstrapUrl)
 	if err != nil {
 		log.Println("ERROR: unable to get broker list", err)
 		return err
 	}
-	util.InitTopic(this.zkUrl, this.topic)
+	err = util.InitTopic(this.bootstrapUrl, this.topic)
+	if err != nil {
+		log.Println("WARNING: unable to create topic", err)
+		err = nil
+	}
 	r := kafka.NewReader(kafka.ReaderConfig{
 		CommitInterval: 0, //synchronous commits
 		Brokers:        broker,
@@ -67,11 +66,13 @@ func (this *Consumer) start() error {
 		Logger:         log.New(ioutil.Discard, "", 0),
 		ErrorLogger:    log.New(ioutil.Discard, "", 0),
 	})
+	contextwg.Add(this.ctx, 1)
 	go func() {
+		defer contextwg.Done(this.ctx)
 		for {
 			select {
 			case <-this.ctx.Done():
-				log.Println("close kafka reader ", this.topic)
+				log.Println("close kafka reader:", this.topic, r.Close())
 				return
 			default:
 				m, err := r.FetchMessage(this.ctx)
@@ -89,14 +90,12 @@ func (this *Consumer) start() error {
 					log.Println("ERROR: unable to handle message (no commit)", err)
 				} else {
 					err = r.CommitMessages(this.ctx, m)
+					if err != nil {
+						log.Println("ERROR: unable to commit message consumption", err)
+					}
 				}
 			}
 		}
 	}()
 	return err
-}
-
-func (this *Consumer) Restart() {
-	this.Stop()
-	this.start()
 }

@@ -1,9 +1,11 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"github.com/SENERGY-Platform/process-model-repository/lib"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
+	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
 	"github.com/SENERGY-Platform/process-model-repository/lib/model"
 	"github.com/ory/dockertest"
 	"log"
@@ -11,6 +13,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -21,30 +24,39 @@ func Test(t *testing.T) {
 		log.Fatal("ERROR: unable to load config", err)
 	}
 
+	wg := &sync.WaitGroup{}
+	defer wg.Wait()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctx = contextwg.WithWaitGroup(ctx, wg)
+
 	pool, err := dockertest.NewPool("")
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 
-	mongoCloser, _, mongoIp, err := MongoTestServer(pool)
-	defer mongoCloser()
+	_, mongoIp, err := MongoTestServer(pool, ctx)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 
 	conf.MongoUrl = "mongodb://" + mongoIp + ":27017"
 
-	closeZk, _, zkIp, err := ZookeeperContainer(pool)
-	defer closeZk()
+	_, zkIp, err := Zookeeper(pool, ctx)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
-	conf.ZookeeperUrl = zkIp + ":2181"
+	zookeeperUrl := zkIp + ":2181"
 
-	closeKafka, err := KafkaContainer(pool, conf.ZookeeperUrl)
-	defer closeKafka()
+	conf.KafkaUrl, err = Kafka(pool, ctx, zookeeperUrl)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 
 	permsearch := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -53,21 +65,22 @@ func Test(t *testing.T) {
 	defer permsearch.Close()
 	conf.PermissionsUrl = permsearch.URL
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	port, err := getFreePort()
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 	conf.ServerPort = strconv.Itoa(port)
 
-	stop, err := lib.Start(conf)
+	err = lib.Start(ctx, conf)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
-	defer stop()
 
-	time.Sleep(20 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	var p3 model.Process
 	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/processes",
@@ -76,7 +89,8 @@ func Test(t *testing.T) {
 			SvgXml:  "svg3",
 		}, &p3)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 
 	time.Sleep(5 * time.Second)
@@ -87,7 +101,8 @@ func Test(t *testing.T) {
 		SvgXml:  "svg4",
 	}, &p4)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 
 	time.Sleep(5 * time.Second)
@@ -95,7 +110,8 @@ func Test(t *testing.T) {
 	var p4c model.Process
 	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/processes/"+p4.Id+"/publish", model.PublicCommand{Publish: true, Description: "publish_description4"}, &p4c)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 
 	time.Sleep(5 * time.Second)
@@ -104,7 +120,8 @@ func Test(t *testing.T) {
 		r := model.Process{}
 		err = userjwt.GetJSON("http://localhost:"+conf.ServerPort+"/processes/"+p.Id, &r)
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
+			return
 		}
 		if r.Id != p.Id {
 			t.Fatal(p, r)
@@ -120,7 +137,8 @@ func Test(t *testing.T) {
 	list := []model.Process{}
 	err = userjwt.GetJSON("http://localhost:"+conf.ServerPort+"/processes", &list)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 
 	if !reflect.DeepEqual(list, []model.Process{p4c}) {

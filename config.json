@@ -10,7 +10,7 @@
     "mongo_table": "process-repository",
     "mongo_process_collection": "process",
     "mongo_repl_set": false,
-    "zookeeper_url": "zk:2181",
+    "kafka_url": "kafka:9092",
     "group_id": "process-model-repository",
     "debug": true,
     "connectivity_test": true

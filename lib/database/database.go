@@ -17,10 +17,11 @@
 package database
 
 import (
+	"context"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/database/mongo"
 )
 
-func New(conf config.Config) (db Database, err error) {
-	return mongo.New(conf)
+func New(ctx context.Context, conf config.Config) (db Database, err error) {
+	return mongo.New(ctx, conf)
 }

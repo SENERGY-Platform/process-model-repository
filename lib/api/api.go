@@ -17,18 +17,21 @@
 package api
 
 import (
+	"context"
 	"github.com/SENERGY-Platform/process-model-repository/lib/api/util"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
+	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
 	"github.com/SmartEnergyPlatform/jwt-http-router"
 	"log"
 	"net/http"
 	"reflect"
 	"runtime"
+	"time"
 )
 
 var endpoints = []func(config config.Config, control Controller, router *jwt_http_router.Router){}
 
-func Start(config config.Config, control Controller) (err error) {
+func Start(ctx context.Context, config config.Config, control Controller) {
 	log.Println("start api")
 	router := jwt_http_router.New(jwt_http_router.JwtConfig{PubRsa: config.JwtPubRsa, ForceAuth: config.ForceAuth, ForceUser: config.ForceUser})
 	for _, e := range endpoints {
@@ -38,7 +41,23 @@ func Start(config config.Config, control Controller) (err error) {
 	log.Println("add logging and cors")
 	corsHandler := util.NewCors(router)
 	logger := util.NewLogger(corsHandler, config.LogLevel)
-	log.Println("listen on port", config.ServerPort)
-	go func() { log.Println(http.ListenAndServe(":"+config.ServerPort, logger)) }()
-	return nil
+	server := &http.Server{Addr: ":" + config.ServerPort, Handler: logger, WriteTimeout: 10 * time.Second, ReadTimeout: 2 * time.Second, ReadHeaderTimeout: 2 * time.Second}
+	go func() {
+		log.Println("Listening on ", server.Addr)
+		if err := server.ListenAndServe(); err != nil {
+			if err != http.ErrServerClosed {
+				log.Println("ERROR: api server error", err)
+				log.Fatal(err)
+			} else {
+				log.Println("closing api server")
+			}
+		}
+	}()
+	contextwg.Add(ctx, 1)
+	go func() {
+		<-ctx.Done()
+		log.Println("DEBUG: api shutdown", server.Shutdown(context.Background()))
+		contextwg.Done(ctx)
+	}()
+	return
 }

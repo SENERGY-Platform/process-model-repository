@@ -17,12 +17,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"github.com/SENERGY-Platform/process-model-repository/lib"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
+	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 )
 
@@ -35,14 +38,23 @@ func main() {
 		log.Fatal("ERROR: unable to load config", err)
 	}
 
-	stop, err := lib.Start(conf)
+	ctx, cancel := context.WithCancel(context.Background())
+	wg := &sync.WaitGroup{}
+	ctx = contextwg.WithWaitGroup(ctx, wg)
+
+	err = lib.Start(ctx, conf)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer stop()
 
-	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
-	sig := <-shutdown
-	log.Println("received shutdown signal", sig)
+	go func() {
+		shutdown := make(chan os.Signal, 1)
+		signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+		sig := <-shutdown
+		log.Println("received shutdown signal", sig)
+		cancel()
+	}()
+
+	<-ctx.Done() //waiting for context end; may happen by shutdown signal
+	wg.Wait()
 }
