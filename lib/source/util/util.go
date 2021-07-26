@@ -59,9 +59,9 @@ func GetKafkaController(zkUrl string) (controller string, err error) {
 	return brokers[controllerId], err
 }
 
-func InitTopic(zkUrl string, topics ...string) (err error) {
+func InitTopic(zkUrl string, topics ...string) {
 	for _, topic := range topics {
-		err = topicconfig.EnsureWithZk(zkUrl, topic, map[string]string{
+		err := topicconfig.EnsureWithZk(zkUrl, topic, map[string]string{
 			"retention.ms":              "-1",
 			"retention.bytes":           "-1",
 			"cleanup.policy":            "compact",
@@ -70,8 +70,7 @@ func InitTopic(zkUrl string, topics ...string) (err error) {
 			"min.cleanable.dirty.ratio": "0.1",
 		})
 		if err != nil {
-			return err
+			log.Println("WARNING:", err)
 		}
 	}
-	return nil
 }

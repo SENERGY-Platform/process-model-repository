@@ -37,6 +37,7 @@ func EnsureWithBroker(broker string, topic string, config map[string]string) (er
 
 	err = create(admin, topic, temp)
 	if err != nil {
+		log.Println("unable to create topic, (", err, ") try update")
 		err = set(admin, topic, temp)
 	}
 

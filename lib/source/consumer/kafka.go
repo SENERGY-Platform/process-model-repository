@@ -57,11 +57,7 @@ func (this *Consumer) start() error {
 		log.Println("ERROR: unable to get broker list", err)
 		return err
 	}
-	err = util.InitTopic(this.zkUrl, this.topic)
-	if err != nil {
-		log.Println("ERROR: unable to create topic", err)
-		return err
-	}
+	util.InitTopic(this.zkUrl, this.topic)
 	r := kafka.NewReader(kafka.ReaderConfig{
 		CommitInterval: 0, //synchronous commits
 		Brokers:        broker,
