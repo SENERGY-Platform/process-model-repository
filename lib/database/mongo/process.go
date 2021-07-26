@@ -63,6 +63,9 @@ func (this *Mongo) processCollection() *mongo.Collection {
 func (this *Mongo) ReadProcess(ctx context.Context, id string) (process model.Process, exists bool, err error) {
 	result := this.processCollection().FindOne(ctx, bson.M{processIdKey: id})
 	err = result.Err()
+	if err == mongo.ErrNoDocuments {
+		return process, false, nil
+	}
 	if err != nil {
 		return
 	}
