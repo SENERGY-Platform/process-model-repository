@@ -28,4 +28,5 @@ type Security interface {
 type Producer interface {
 	PublishProcessPut(id string, userId string, process model.Process) error
 	PublishProcessDelete(id string, userId string) error
+	PublishDeleteUserRights(resource string, id string, userId string) error
 }

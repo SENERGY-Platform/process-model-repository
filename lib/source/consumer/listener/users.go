@@ -17,11 +17,29 @@
 package listener
 
 import (
-	"github.com/SENERGY-Platform/process-model-repository/lib/model"
+	"encoding/json"
+	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 )
 
-type Controller interface {
-	SetProcess(process model.Process) error
-	DeleteProcess(id string) error
-	HandleUserDelete(userId string) error
+func init() {
+	Factories = append(Factories, UsersListenerFactory)
+}
+
+type UserCommandMsg struct {
+	Command string `json:"command"`
+	Id      string `json:"id"`
+}
+
+func UsersListenerFactory(config config.Config, control Controller) (topic string, listener Listener, err error) {
+	return config.UsersTopic, func(msg []byte) (err error) {
+		command := UserCommandMsg{}
+		err = json.Unmarshal(msg, &command)
+		if err != nil {
+			return
+		}
+		if command.Command != "DELETE" {
+			return nil
+		}
+		return control.HandleUserDelete(command.Id)
+	}, nil
 }

@@ -29,8 +29,9 @@ import (
 )
 
 type Producer struct {
-	config  config.Config
-	process *kafka.Writer
+	config      config.Config
+	process     *kafka.Writer
+	permissions *kafka.Writer
 }
 
 func New(ctx context.Context, conf config.Config) (*Producer, error) {
@@ -45,13 +46,17 @@ func New(ctx context.Context, conf config.Config) (*Producer, error) {
 	if err != nil {
 		return nil, err
 	}
+	permissions, err := getProducer(broker, conf.PermissionsTopic, conf.LogLevel == "DEBUG")
+	if err != nil {
+		return nil, err
+	}
 	contextwg.Add(ctx, 1)
 	go func() {
 		<-ctx.Done()
 		log.Println("close kafka producer:", process.Close())
 		contextwg.Done(ctx)
 	}()
-	return &Producer{config: conf, process: process}, nil
+	return &Producer{config: conf, process: process, permissions: permissions}, nil
 }
 
 func getProducer(broker []string, topic string, debug bool) (writer *kafka.Writer, err error) {

@@ -5,6 +5,8 @@
     "force_user": true,
     "log_level": "CALL",
     "process_topic": "processmodel",
+    "users_topic": "user",
+    "permissions_topic": "permissions",
     "permissions_url": "http://permissionsearch:8080",
     "mongo_url": "mongodb://localhost:27017",
     "mongo_table": "process-repository",

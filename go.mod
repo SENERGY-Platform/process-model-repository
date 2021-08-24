@@ -5,6 +5,7 @@ go 1.15
 require (
 	github.com/SmartEnergyPlatform/jwt-http-router v0.0.0-20190722084820-0e1fe0dc7a07
 	github.com/beevik/etree v1.1.0
+	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/klauspost/compress v1.11.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.8.0 // indirect
