@@ -24,6 +24,8 @@ func Test(t *testing.T) {
 		log.Fatal("ERROR: unable to load config", err)
 	}
 
+	conf.ConnectivityTest = false
+
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
 

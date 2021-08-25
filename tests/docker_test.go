@@ -13,8 +13,10 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"log"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -135,6 +137,74 @@ func Zookeeper(pool *dockertest.Pool, ctx context.Context) (hostPort string, ipA
 		}
 		return nil
 	})
+	return hostPort, container.Container.NetworkSettings.IPAddress, err
+}
+
+func PermSearch(pool *dockertest.Pool, ctx context.Context, wg *sync.WaitGroup, zk string, elasticIp string) (hostPort string, ipAddress string, err error) {
+	log.Println("start permsearch")
+	container, err := pool.Run("ghcr.io/senergy-platform/permission-search", "dev", []string{
+		"KAFKA_URL=" + zk,
+		"ELASTIC_URL=" + "http://" + elasticIp + ":9200",
+	})
+	if err != nil {
+		return "", "", err
+	}
+
+	wg.Add(1)
+	go func() {
+		<-ctx.Done()
+		log.Println("DEBUG: remove container " + container.Container.Name)
+		container.Close()
+		wg.Done()
+	}()
+
+	hostPort = container.GetPort("8080/tcp")
+	err = pool.Retry(func() error {
+		log.Println("try permsearch connection...")
+		_, err := http.Get("http://" + container.Container.NetworkSettings.IPAddress + ":8080/jwt/check/deviceinstance/foo/r/bool")
+		if err != nil {
+			log.Println(err)
+		}
+		return err
+	})
+	return hostPort, container.Container.NetworkSettings.IPAddress, err
+}
+
+func Elasticsearch(pool *dockertest.Pool, ctx context.Context, wg *sync.WaitGroup) (hostPort string, ipAddress string, err error) {
+	log.Println("start elasticsearch")
+	container, err := pool.RunWithOptions(&dockertest.RunOptions{
+		Repository: "docker.elastic.co/elasticsearch/elasticsearch",
+		Tag:        "7.6.1",
+		Env: []string{
+			"discovery.type=single-node",
+			"path.data=/opt/elasticsearch/volatile/data",
+			"path.logs=/opt/elasticsearch/volatile/logs",
+		},
+	}, func(config *docker.HostConfig) {
+		config.Tmpfs = map[string]string{
+			"/opt/elasticsearch/volatile/data": "rw",
+			"/opt/elasticsearch/volatile/logs": "rw",
+			"/tmp":                             "rw",
+		}
+	})
+
+	wg.Add(1)
+	go func() {
+		<-ctx.Done()
+		log.Println("DEBUG: remove container " + container.Container.Name)
+		container.Close()
+		wg.Done()
+	}()
+
+	hostPort = container.GetPort("9200/tcp")
+	err = pool.Retry(func() error {
+		log.Println("try elastic connection...")
+		_, err := http.Get("http://" + container.Container.NetworkSettings.IPAddress + ":9200/_cluster/health")
+		return err
+	})
+	if err != nil {
+		log.Println(err)
+	}
 	return hostPort, container.Container.NetworkSettings.IPAddress, err
 }
 
