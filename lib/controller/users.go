@@ -71,12 +71,18 @@ func (this *Controller) ResourcesEffectedByUserDelete(token auth.Token, resource
 			deleteUserFromResourceIds = append(deleteUserFromResourceIds, element.Id)
 		}
 	})
+	if err != nil {
+		return
+	}
 	err = this.iterateResource(token, resource, ResourcesEffectedByUserDelete_BATCH_SIZE, "w", func(element PermSearchElement) {
 		if !contains(element.PermissionHolders.AdminUsers, userid) &&
 			!contains(element.PermissionHolders.ReadUsers, userid) {
 			deleteUserFromResourceIds = append(deleteUserFromResourceIds, element.Id)
 		}
 	})
+	if err != nil {
+		return
+	}
 	err = this.iterateResource(token, resource, ResourcesEffectedByUserDelete_BATCH_SIZE, "x", func(element PermSearchElement) {
 		if !contains(element.PermissionHolders.AdminUsers, userid) &&
 			!contains(element.PermissionHolders.ReadUsers, userid) &&
