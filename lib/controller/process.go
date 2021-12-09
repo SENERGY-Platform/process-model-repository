@@ -95,7 +95,7 @@ func (this *Controller) PublishProcessUpdate(jwt jwt_http_router.Jwt, id string,
 		}
 	}
 	old, err, code := this.ReadProcess(jwt, id, model.WRITE)
-	if err != nil {
+	if err != nil && err.Error() != "not found" {
 		return result, err, code
 	}
 	if old.Owner != "" {
