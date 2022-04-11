@@ -33,6 +33,7 @@ func TestUserDelete(t *testing.T) {
 		log.Fatal("ERROR: unable to load config", err)
 	}
 
+	conf.Debug = true
 	conf.ConnectivityTest = false
 
 	wg := &sync.WaitGroup{}

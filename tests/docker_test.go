@@ -74,9 +74,18 @@ func Kafka(pool *dockertest.Pool, ctx context.Context, zookeeperUrl string) (kaf
 		"KAFKA_ZOOKEEPER_CONNECT=" + zookeeperUrl,
 	}
 	log.Println("start kafka with env ", env)
-	container, err := pool.RunWithOptions(&dockertest.RunOptions{Repository: "bitnami/kafka", Tag: "latest", Env: env, PortBindings: map[docker.Port][]docker.PortBinding{
-		"9092/tcp": {{HostIP: "", HostPort: strconv.Itoa(kafkaport)}},
-	}})
+	container, err := pool.RunWithOptions(&dockertest.RunOptions{
+		Repository: "bitnami/kafka",
+		Tag:        "latest",
+		Env:        env,
+		PortBindings: map[docker.Port][]docker.PortBinding{
+			"9092/tcp": {{HostIP: "", HostPort: strconv.Itoa(kafkaport)}},
+		},
+	}, func(config *docker.HostConfig) {
+		config.Tmpfs = map[string]string{
+			"/var/lib/kafka/data": "rw",
+		}
+	})
 	if err != nil {
 		return kafkaUrl, err
 	}
@@ -106,9 +115,19 @@ func Zookeeper(pool *dockertest.Pool, ctx context.Context) (hostPort string, ipA
 	}
 	env := []string{}
 	log.Println("start zookeeper on ", zkport)
-	container, err := pool.RunWithOptions(&dockertest.RunOptions{Repository: "wurstmeister/zookeeper", Tag: "latest", Env: env, PortBindings: map[docker.Port][]docker.PortBinding{
-		"2181/tcp": {{HostIP: "", HostPort: strconv.Itoa(zkport)}},
-	}})
+	container, err := pool.RunWithOptions(&dockertest.RunOptions{
+		Repository: "wurstmeister/zookeeper",
+		Tag:        "latest",
+		Env:        env,
+		PortBindings: map[docker.Port][]docker.PortBinding{
+			"2181/tcp": {{HostIP: "", HostPort: strconv.Itoa(zkport)}},
+		},
+	}, func(config *docker.HostConfig) {
+		config.Tmpfs = map[string]string{
+			"/var/lib/zookeeper/data": "rw",
+			"/var/lib/zookeeper/log":  "rw",
+		}
+	})
 	if err != nil {
 		return "", "", err
 	}

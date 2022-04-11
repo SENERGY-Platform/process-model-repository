@@ -23,7 +23,7 @@ func Test(t *testing.T) {
 	if err != nil {
 		log.Fatal("ERROR: unable to load config", err)
 	}
-
+	conf.Debug = true
 	conf.ConnectivityTest = false
 
 	wg := &sync.WaitGroup{}
