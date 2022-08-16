@@ -69,9 +69,11 @@ func getProducer(broker []string, topic string, debug bool) (writer *kafka.Write
 	writer = &kafka.Writer{
 		Addr:        kafka.TCP(broker...),
 		Topic:       topic,
-		Async:       false,
 		Logger:      logger,
 		MaxAttempts: 10,
+		Async:       false,
+		BatchSize:   1,
+		Balancer:    &kafka.Hash{},
 		ErrorLogger: log.New(os.Stderr, "KAFKA", 0),
 	}
 	return writer, err
