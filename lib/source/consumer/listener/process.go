@@ -39,6 +39,8 @@ func ProcessListenerFactory(config config.Config, control Controller) (topic str
 			return control.SetProcess(command.Processmodel)
 		case "DELETE":
 			return control.DeleteProcess(command.Id)
+		case "RIGHTS":
+			return nil
 		}
 		return errors.New("unable to handle command: " + string(msg))
 	}, nil
