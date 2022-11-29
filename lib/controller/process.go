@@ -42,7 +42,7 @@ func (this *Controller) ReadProcess(jwt jwt_http_router.Jwt, id string, action m
 		return result, err, http.StatusInternalServerError
 	}
 	if !access {
-		return result, err, http.StatusForbidden
+		return result, errors.New("access denied"), http.StatusForbidden
 	}
 	ctx, _ := context.WithTimeout(context.Background(), TIMEOUT)
 	result, exists, err := this.db.ReadProcess(ctx, id)
@@ -141,7 +141,7 @@ func (this *Controller) PublishProcessDelete(jwt jwt_http_router.Jwt, id string)
 		return err, http.StatusInternalServerError
 	}
 	if !access {
-		return err, http.StatusForbidden
+		return errors.New("access denied"), http.StatusForbidden
 	}
 	err = this.producer.PublishProcessDelete(id, jwt.UserId)
 	if err != nil {
