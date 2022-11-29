@@ -80,5 +80,5 @@ func (this *Security) CheckBool(jwt jwt_http_router.Jwt, kind string, id string,
 		debug.PrintStack()
 		return false, err
 	}
-	return true, nil
+	return allowed, nil
 }
