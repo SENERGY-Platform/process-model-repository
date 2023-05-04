@@ -20,10 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/SENERGY-Platform/process-model-repository/lib/auth"
 	"github.com/SENERGY-Platform/process-model-repository/lib/model"
-	jwt_http_router "github.com/SmartEnergyPlatform/jwt-http-router"
 	"github.com/beevik/etree"
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"log"
 	"net/http"
 	"runtime/debug"
@@ -36,8 +36,8 @@ import (
 
 const TIMEOUT = 10 * time.Second
 
-func (this *Controller) ReadProcess(jwt jwt_http_router.Jwt, id string, action model.AuthAction) (result model.Process, err error, errCode int) {
-	access, err := this.security.CheckBool(jwt, this.config.ProcessTopic, id, action)
+func (this *Controller) ReadProcess(token auth.Token, id string, action model.AuthAction) (result model.Process, err error, errCode int) {
+	access, err := this.security.CheckBool(token, this.config.ProcessTopic, id, action)
 	if err != nil {
 		return result, err, http.StatusInternalServerError
 	}
@@ -64,8 +64,8 @@ func (this *Controller) ReadAllPublicProcess() (result []model.Process, err erro
 	return result, nil, http.StatusOK
 }
 
-func (this *Controller) PublishProcessCreate(jwt jwt_http_router.Jwt, process model.Process) (result model.Process, err error, code int) {
-	process.Id = uuid.NewV4().String()
+func (this *Controller) PublishProcessCreate(token auth.Token, process model.Process) (result model.Process, err error, code int) {
+	process.Id = uuid.NewString()
 	if process.Name == "" {
 		process.Name, err = this.GetProcessModelName(process.BpmnXml)
 		if err != nil {
@@ -76,15 +76,15 @@ func (this *Controller) PublishProcessCreate(jwt jwt_http_router.Jwt, process mo
 	if err != nil {
 		return result, err, http.StatusBadRequest
 	}
-	process.Owner = jwt.UserId
-	err = this.producer.PublishProcessPut(process.Id, jwt.UserId, process)
+	process.Owner = token.GetUserId()
+	err = this.producer.PublishProcessPut(process.Id, token.GetUserId(), process)
 	if err != nil {
 		return result, err, http.StatusInternalServerError
 	}
 	return process, nil, http.StatusOK
 }
 
-func (this *Controller) PublishProcessUpdate(jwt jwt_http_router.Jwt, id string, process model.Process) (result model.Process, err error, code int) {
+func (this *Controller) PublishProcessUpdate(token auth.Token, id string, process model.Process) (result model.Process, err error, code int) {
 	if process.Id != id {
 		return result, errors.New("path id != process.id"), http.StatusBadRequest
 	}
@@ -94,28 +94,28 @@ func (this *Controller) PublishProcessUpdate(jwt jwt_http_router.Jwt, id string,
 			return result, err, http.StatusBadRequest
 		}
 	}
-	old, err, code := this.ReadProcess(jwt, id, model.WRITE)
+	old, err, code := this.ReadProcess(token, id, model.WRITE)
 	if err != nil && err.Error() != "not found" {
 		return result, err, code
 	}
 	if old.Owner != "" {
 		process.Owner = old.Owner
 	} else {
-		process.Owner = jwt.UserId
+		process.Owner = token.GetUserId()
 	}
 	err = process.Validate()
 	if err != nil {
 		return result, err, http.StatusBadRequest
 	}
-	err = this.producer.PublishProcessPut(process.Id, jwt.UserId, process)
+	err = this.producer.PublishProcessPut(process.Id, token.GetUserId(), process)
 	if err != nil {
 		return result, err, http.StatusInternalServerError
 	}
 	return process, nil, http.StatusOK
 }
 
-func (this *Controller) PublishProcessPublicUpdate(jwt jwt_http_router.Jwt, id string, publicCommand model.PublicCommand) (result model.Process, err error, code int) {
-	process, err, code := this.ReadProcess(jwt, id, model.WRITE)
+func (this *Controller) PublishProcessPublicUpdate(token auth.Token, id string, publicCommand model.PublicCommand) (result model.Process, err error, code int) {
+	process, err, code := this.ReadProcess(token, id, model.WRITE)
 	if err != nil {
 		return result, err, code
 	}
@@ -128,22 +128,22 @@ func (this *Controller) PublishProcessPublicUpdate(jwt jwt_http_router.Jwt, id s
 		process.Description = ""
 	}
 
-	err = this.producer.PublishProcessPut(process.Id, jwt.UserId, process)
+	err = this.producer.PublishProcessPut(process.Id, token.GetUserId(), process)
 	if err != nil {
 		return result, err, http.StatusInternalServerError
 	}
 	return process, nil, http.StatusOK
 }
 
-func (this *Controller) PublishProcessDelete(jwt jwt_http_router.Jwt, id string) (error, int) {
-	access, err := this.security.CheckBool(jwt, this.config.ProcessTopic, id, model.ADMINISTRATE)
+func (this *Controller) PublishProcessDelete(token auth.Token, id string) (error, int) {
+	access, err := this.security.CheckBool(token, this.config.ProcessTopic, id, model.ADMINISTRATE)
 	if err != nil {
 		return err, http.StatusInternalServerError
 	}
 	if !access {
 		return errors.New("access denied"), http.StatusForbidden
 	}
-	err = this.producer.PublishProcessDelete(id, jwt.UserId)
+	err = this.producer.PublishProcessDelete(id, token.GetUserId())
 	if err != nil {
 		return err, http.StatusInternalServerError
 	}

@@ -21,7 +21,7 @@ import (
 	"github.com/SENERGY-Platform/process-model-repository/lib/api/util"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
-	"github.com/SmartEnergyPlatform/jwt-http-router"
+	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
 	"reflect"
@@ -29,11 +29,11 @@ import (
 	"time"
 )
 
-var endpoints = []func(config config.Config, control Controller, router *jwt_http_router.Router){}
+var endpoints = []func(config config.Config, control Controller, router *httprouter.Router){}
 
 func Start(ctx context.Context, config config.Config, control Controller) {
 	log.Println("start api")
-	router := jwt_http_router.New(jwt_http_router.JwtConfig{PubRsa: config.JwtPubRsa, ForceAuth: config.ForceAuth, ForceUser: config.ForceUser})
+	router := httprouter.New()
 	for _, e := range endpoints {
 		log.Println("add endpoints: " + runtime.FuncForPC(reflect.ValueOf(e).Pointer()).Name())
 		e(config, control, router)

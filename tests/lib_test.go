@@ -1,13 +1,16 @@
 package tests
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/SENERGY-Platform/process-model-repository/lib"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
 	"github.com/SENERGY-Platform/process-model-repository/lib/model"
-	"github.com/ory/dockertest/v3"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -34,13 +37,7 @@ func Test(t *testing.T) {
 
 	ctx = contextwg.WithWaitGroup(ctx, wg)
 
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	_, mongoIp, err := MongoTestServer(pool, ctx)
+	_, mongoIp, err := MongoTestServer(ctx, wg)
 	if err != nil {
 		t.Error(err)
 		return
@@ -48,14 +45,14 @@ func Test(t *testing.T) {
 
 	conf.MongoUrl = "mongodb://" + mongoIp + ":27017"
 
-	_, zkIp, err := Zookeeper(pool, ctx)
+	_, zkIp, err := Zookeeper(ctx, wg)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	zookeeperUrl := zkIp + ":2181"
 
-	conf.KafkaUrl, err = Kafka(pool, ctx, zookeeperUrl)
+	conf.KafkaUrl, err = Kafka(ctx, wg, zookeeperUrl)
 	if err != nil {
 		t.Error(err)
 		return
@@ -85,7 +82,7 @@ func Test(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	var p3 model.Process
-	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/processes",
+	err = PostJSON(userjwt, "http://localhost:"+conf.ServerPort+"/processes",
 		model.Process{
 			BpmnXml: createTestXmlString("p3"),
 			SvgXml:  "svg3",
@@ -98,7 +95,7 @@ func Test(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	var p4 model.Process
-	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/processes", model.Process{
+	err = PostJSON(userjwt, "http://localhost:"+conf.ServerPort+"/processes", model.Process{
 		BpmnXml: createTestXmlString("p4"),
 		SvgXml:  "svg4",
 	}, &p4)
@@ -110,7 +107,7 @@ func Test(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	var p4c model.Process
-	err = userjwt.PostJSON("http://localhost:"+conf.ServerPort+"/processes/"+p4.Id+"/publish", model.PublicCommand{Publish: true, Description: "publish_description4"}, &p4c)
+	err = PostJSON(userjwt, "http://localhost:"+conf.ServerPort+"/processes/"+p4.Id+"/publish", model.PublicCommand{Publish: true, Description: "publish_description4"}, &p4c)
 	if err != nil {
 		t.Error(err)
 		return
@@ -120,7 +117,7 @@ func Test(t *testing.T) {
 
 	for _, p := range []model.Process{p3, p4c} {
 		r := model.Process{}
-		err = userjwt.GetJSON("http://localhost:"+conf.ServerPort+"/processes/"+p.Id, &r)
+		err = GetJSON(userjwt, "http://localhost:"+conf.ServerPort+"/processes/"+p.Id, &r)
 		if err != nil {
 			t.Error(err)
 			return
@@ -137,7 +134,7 @@ func Test(t *testing.T) {
 	}
 
 	list := []model.Process{}
-	err = userjwt.GetJSON("http://localhost:"+conf.ServerPort+"/processes", &list)
+	err = GetJSON(userjwt, "http://localhost:"+conf.ServerPort+"/processes", &list)
 	if err != nil {
 		t.Error(err)
 		return
@@ -153,6 +150,74 @@ func Test(t *testing.T) {
 	if isStr != wantStr {
 		t.Fatal(isStr, "\n\n!=\n\n", wantStr)
 	}
+}
+
+func Post(token string, url string, contentType string, body io.Reader) (resp *http.Response, err error) {
+	req, err := http.NewRequest("POST", url, body)
+	if err != nil {
+		return nil, err
+	}
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	req.WithContext(ctx)
+	req.Header.Set("Authorization", token)
+	req.Header.Set("Content-Type", contentType)
+
+	resp, err = http.DefaultClient.Do(req)
+
+	if err == nil && resp.StatusCode >= 300 {
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(resp.Body)
+		resp.Body.Close()
+		log.Println(buf.String())
+		err = errors.New(resp.Status)
+	}
+	return
+}
+
+func PostJSON(token string, url string, body interface{}, result interface{}) (err error) {
+	b := new(bytes.Buffer)
+	err = json.NewEncoder(b).Encode(body)
+	if err != nil {
+		return
+	}
+	resp, err := Post(token, url, "application/json", b)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if result != nil {
+		err = json.NewDecoder(resp.Body).Decode(result)
+	}
+	return
+}
+
+func Get(token string, url string) (resp *http.Response, err error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	req.WithContext(ctx)
+	req.Header.Set("Authorization", token)
+	resp, err = http.DefaultClient.Do(req)
+
+	if err == nil && resp.StatusCode >= 300 {
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(resp.Body)
+		resp.Body.Close()
+		log.Println(buf.String())
+		err = errors.New(resp.Status)
+	}
+	return
+}
+
+func GetJSON(token string, url string, result interface{}) (err error) {
+	resp, err := Get(token, url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return json.NewDecoder(resp.Body).Decode(result)
 }
 
 func createTestXmlString(processId string) (result string) {

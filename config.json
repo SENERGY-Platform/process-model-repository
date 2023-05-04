@@ -1,8 +1,5 @@
 {
     "server_port": "8080",
-    "jwt_pub_rsa": "",
-    "force_auth": true,
-    "force_user": true,
     "log_level": "CALL",
     "process_topic": "processmodel",
     "users_topic": "user",

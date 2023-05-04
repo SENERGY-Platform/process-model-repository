@@ -1,15 +1,9 @@
 package controller
 
 import (
-	"bytes"
-	"encoding/json"
-	"errors"
-	"github.com/SENERGY-Platform/process-model-repository/lib/controller/auth"
-	"log"
-	"net/http"
-	"net/url"
-	"runtime/debug"
-	"strconv"
+	"github.com/SENERGY-Platform/permission-search/lib/client"
+	"github.com/SENERGY-Platform/permission-search/lib/model"
+	"github.com/SENERGY-Platform/process-model-repository/lib/auth"
 )
 
 func (this *Controller) HandleUserDelete(userId string) error {
@@ -100,22 +94,23 @@ func (this *Controller) iterateResource(token auth.Token, resource string, batch
 	lastCount := batchsize
 	lastElement := PermSearchElement{}
 	for lastCount == batchsize {
-		query := url.Values{}
-		query.Add("limit", strconv.Itoa(batchsize))
-		query.Add("sort", "name.asc")
-		query.Add("rights", rights)
-		if lastElement.Id == "" {
-			query.Add("offset", "0")
-		} else {
-			name, err := json.Marshal(lastElement.Name)
-			if err != nil {
-				return err
-			}
-			query.Add("after.sort_field_value", string(name))
-			query.Add("after.id", lastElement.Id)
+		options := client.ListOptions{
+			QueryListCommons: model.QueryListCommons{
+				Limit:    batchsize,
+				Rights:   rights,
+				SortBy:   "name",
+				SortDesc: false,
+			},
 		}
-		temp := []PermSearchElement{}
-		err = this.queryResourceInPermsearch(token, resource, query, &temp)
+		if lastElement.Id == "" {
+			options.Offset = 0
+		} else {
+			options.After = &client.ListAfter{
+				SortFieldValue: lastElement.Name,
+				Id:             lastElement.Id,
+			}
+		}
+		temp, err := client.List[[]PermSearchElement](this.permissionsearch, token.Jwt(), resource, options)
 		if err != nil {
 			return err
 		}
@@ -128,31 +123,6 @@ func (this *Controller) iterateResource(token auth.Token, resource string, batch
 		}
 	}
 	return err
-}
-
-func (this *Controller) queryResourceInPermsearch(token auth.Token, resource string, query url.Values, result interface{}) (err error) {
-	req, err := http.NewRequest("GET", this.config.PermissionsUrl+"/v3/resources/"+resource+"?"+query.Encode(), nil)
-	if err != nil {
-		debug.PrintStack()
-		return err
-	}
-	req.Header.Set("Authorization", token.Token)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		debug.PrintStack()
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(resp.Body)
-		err = errors.New(buf.String())
-		log.Println("ERROR: queryResourceInPermsearch()", resource, resp.StatusCode, err)
-		debug.PrintStack()
-		return err
-	}
-	err = json.NewDecoder(resp.Body).Decode(result)
-	return
 }
 
 func contains(list []string, value string) bool {

@@ -17,12 +17,12 @@
 package controller
 
 import (
+	"github.com/SENERGY-Platform/process-model-repository/lib/auth"
 	"github.com/SENERGY-Platform/process-model-repository/lib/model"
-	"github.com/SmartEnergyPlatform/jwt-http-router"
 )
 
 type Security interface {
-	CheckBool(jwt jwt_http_router.Jwt, kind string, id string, action model.AuthAction) (allowed bool, err error)
+	CheckBool(token auth.Token, kind string, id string, action model.AuthAction) (allowed bool, err error)
 }
 
 type Producer interface {

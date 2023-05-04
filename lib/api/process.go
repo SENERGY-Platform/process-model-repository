@@ -18,9 +18,10 @@ package api
 
 import (
 	"encoding/json"
+	"github.com/SENERGY-Platform/process-model-repository/lib/auth"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/model"
-	jwt_http_router "github.com/SmartEnergyPlatform/jwt-http-router"
+	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
 )
@@ -29,19 +30,24 @@ func init() {
 	endpoints = append(endpoints, ProcessEndpoints)
 }
 
-func ProcessEndpoints(config config.Config, control Controller, router *jwt_http_router.Router) {
+func ProcessEndpoints(config config.Config, control Controller, router *httprouter.Router) {
 	resource := "/processes"
 
 	//use 'p' query parameter to limit selection to a permission;
 	//		used internally to guarantee that user has needed permission for the resource
 	//		example: 'p=x' guaranties the user has execution rights
-	router.GET(resource+"/:id", func(writer http.ResponseWriter, request *http.Request, params jwt_http_router.Params, jwt jwt_http_router.Jwt) {
+	router.GET(resource+"/:id", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
 		id := params.ByName("id")
 		permission := model.AuthAction(request.URL.Query().Get("p"))
 		if permission == "" {
 			permission = model.READ
 		}
-		result, err, errCode := control.ReadProcess(jwt, id, permission)
+		token, err := auth.GetParsedToken(request)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		result, err, errCode := control.ReadProcess(token, id, permission)
 		if err != nil {
 			http.Error(writer, err.Error(), errCode)
 			return
@@ -54,7 +60,7 @@ func ProcessEndpoints(config config.Config, control Controller, router *jwt_http
 		return
 	})
 
-	router.GET(resource, func(writer http.ResponseWriter, request *http.Request, params jwt_http_router.Params, jwt jwt_http_router.Jwt) {
+	router.GET(resource, func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
 		result, err, errCode := control.ReadAllPublicProcess()
 		if err != nil {
 			http.Error(writer, err.Error(), errCode)
@@ -68,14 +74,19 @@ func ProcessEndpoints(config config.Config, control Controller, router *jwt_http
 		return
 	})
 
-	router.POST(resource, func(writer http.ResponseWriter, request *http.Request, params jwt_http_router.Params, jwt jwt_http_router.Jwt) {
+	router.POST(resource, func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
 		process := model.Process{}
 		err := json.NewDecoder(request.Body).Decode(&process)
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-		result, err, code := control.PublishProcessCreate(jwt, process)
+		token, err := auth.GetParsedToken(request)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		result, err, code := control.PublishProcessCreate(token, process)
 		if err != nil {
 			http.Error(writer, err.Error(), code)
 			return
@@ -88,7 +99,7 @@ func ProcessEndpoints(config config.Config, control Controller, router *jwt_http
 		return
 	})
 
-	router.PUT(resource+"/:id", func(writer http.ResponseWriter, request *http.Request, params jwt_http_router.Params, jwt jwt_http_router.Jwt) {
+	router.PUT(resource+"/:id", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
 		process := model.Process{}
 		id := params.ByName("id")
 		err := json.NewDecoder(request.Body).Decode(&process)
@@ -96,7 +107,12 @@ func ProcessEndpoints(config config.Config, control Controller, router *jwt_http
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-		result, err, code := control.PublishProcessUpdate(jwt, id, process)
+		token, err := auth.GetParsedToken(request)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		result, err, code := control.PublishProcessUpdate(token, id, process)
 		if err != nil {
 			http.Error(writer, err.Error(), code)
 			return
@@ -108,7 +124,7 @@ func ProcessEndpoints(config config.Config, control Controller, router *jwt_http
 		}
 	})
 
-	router.POST(resource+"/:id/publish", func(writer http.ResponseWriter, request *http.Request, params jwt_http_router.Params, jwt jwt_http_router.Jwt) {
+	router.POST(resource+"/:id/publish", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
 		id := params.ByName("id")
 		var public model.PublicCommand
 		err := json.NewDecoder(request.Body).Decode(&public)
@@ -116,7 +132,12 @@ func ProcessEndpoints(config config.Config, control Controller, router *jwt_http
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-		result, err, code := control.PublishProcessPublicUpdate(jwt, id, public)
+		token, err := auth.GetParsedToken(request)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		result, err, code := control.PublishProcessPublicUpdate(token, id, public)
 		if err != nil {
 			http.Error(writer, err.Error(), code)
 			return
@@ -128,9 +149,14 @@ func ProcessEndpoints(config config.Config, control Controller, router *jwt_http
 		}
 	})
 
-	router.DELETE(resource+"/:id", func(writer http.ResponseWriter, request *http.Request, params jwt_http_router.Params, jwt jwt_http_router.Jwt) {
+	router.DELETE(resource+"/:id", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
 		id := params.ByName("id")
-		err, code := control.PublishProcessDelete(jwt, id)
+		token, err := auth.GetParsedToken(request)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		err, code := control.PublishProcessDelete(token, id)
 		if err != nil {
 			http.Error(writer, err.Error(), code)
 			return

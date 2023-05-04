@@ -17,68 +17,34 @@
 package com
 
 import (
-	"bytes"
-	"encoding/json"
-	"errors"
+	"github.com/SENERGY-Platform/permission-search/lib/client"
+	"github.com/SENERGY-Platform/process-model-repository/lib/auth"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/model"
-	"net/http"
-	"net/url"
-	"runtime/debug"
-
-	"github.com/SmartEnergyPlatform/jwt-http-router"
 )
 
 func NewSecurity(config config.Config) (*Security, error) {
-	return &Security{config: config}, nil
+	return &Security{config: config, permissionsearch: client.NewClient(config.PermissionsUrl)}, nil
 }
 
 type Security struct {
-	config config.Config
+	config           config.Config
+	permissionsearch client.Client
 }
 
-type IdWrapper struct {
-	Id string `json:"id"`
-}
-
-func IsAdmin(jwt jwt_http_router.Jwt) bool {
-	return contains(jwt.RealmAccess.Roles, "admin")
-}
-
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
-
-func (this *Security) CheckBool(jwt jwt_http_router.Jwt, kind string, id string, action model.AuthAction) (allowed bool, err error) {
-	if IsAdmin(jwt) {
+func (this *Security) CheckBool(token auth.Token, kind string, id string, action model.AuthAction) (allowed bool, err error) {
+	if token.IsAdmin() {
 		return true, nil
 	}
-	req, err := http.NewRequest("GET", this.config.PermissionsUrl+"/jwt/check/"+url.QueryEscape(kind)+"/"+url.QueryEscape(id)+"/"+action.String()+"/bool", nil)
-	if err != nil {
-		debug.PrintStack()
+	err = this.permissionsearch.CheckUserOrGroup(token.Jwt(), kind, id, action.String())
+	switch err {
+	case nil:
+		return true, nil
+	case client.ErrAccessDenied:
+		return false, nil
+	case client.ErrNotFound:
+		return false, nil
+	default:
 		return false, err
 	}
-	req.Header.Set("Authorization", string(jwt.Impersonate))
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		debug.PrintStack()
-		return false, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(resp.Body)
-		return false, errors.New(buf.String())
-	}
-	err = json.NewDecoder(resp.Body).Decode(&allowed)
-	if err != nil {
-		debug.PrintStack()
-		return false, err
-	}
-	return allowed, nil
 }

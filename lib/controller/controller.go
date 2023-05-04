@@ -17,23 +17,26 @@
 package controller
 
 import (
+	"github.com/SENERGY-Platform/permission-search/lib/client"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/database"
 )
 
 func New(config config.Config, db database.Database, security Security, producer Producer) (ctrl *Controller, err error) {
 	ctrl = &Controller{
-		db:       db,
-		producer: producer,
-		security: security,
-		config:   config,
+		db:               db,
+		producer:         producer,
+		security:         security,
+		config:           config,
+		permissionsearch: client.NewClient(config.PermissionsUrl),
 	}
 	return
 }
 
 type Controller struct {
-	db       database.Database
-	security Security
-	producer Producer
-	config   config.Config
+	db               database.Database
+	security         Security
+	producer         Producer
+	config           config.Config
+	permissionsearch client.Client
 }

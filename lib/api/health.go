@@ -3,7 +3,8 @@ package api
 import (
 	"bytes"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
-	jwt_http_router "github.com/SmartEnergyPlatform/jwt-http-router"
+	"github.com/julienschmidt/httprouter"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -16,8 +17,8 @@ func init() {
 
 const connectivityTestToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjb25uZWN0aXZpdHktdGVzdCJ9.OnihzQ7zwSq0l1Za991SpdsxkktfrdlNl-vHHpYpXQw"
 
-func HealthEndpoints(config config.Config, control Controller, router *jwt_http_router.Router) {
-	router.POST("/health", func(writer http.ResponseWriter, request *http.Request, params jwt_http_router.Params, jwt jwt_http_router.Jwt) {
+func HealthEndpoints(config config.Config, control Controller, router *httprouter.Router) {
+	router.POST("/health", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
 		msg, err := ioutil.ReadAll(request.Body)
 		log.Println("INFO: /health", err, string(msg))
 		writer.WriteHeader(http.StatusOK)
@@ -47,7 +48,7 @@ func HealthEndpoints(config config.Config, control Controller, router *jwt_http_
 				if err != nil {
 					log.Fatal("FATAL: connection test:", err)
 				}
-				ioutil.ReadAll(resp.Body)
+				io.ReadAll(resp.Body)
 				resp.Body.Close()
 			}
 		}()

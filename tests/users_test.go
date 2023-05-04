@@ -6,15 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/SENERGY-Platform/process-model-repository/lib"
+	"github.com/SENERGY-Platform/process-model-repository/lib/auth"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
-	"github.com/SENERGY-Platform/process-model-repository/lib/controller/auth"
 	"github.com/SENERGY-Platform/process-model-repository/lib/model"
 	"github.com/SENERGY-Platform/process-model-repository/lib/source/consumer/listener"
 	"github.com/SENERGY-Platform/process-model-repository/lib/source/producer"
 	"github.com/SENERGY-Platform/process-model-repository/lib/source/util"
-	jwt_http_router "github.com/SmartEnergyPlatform/jwt-http-router"
-	"github.com/ory/dockertest/v3"
 	"github.com/segmentio/kafka-go"
 	"log"
 	"net/http"
@@ -44,13 +42,7 @@ func TestUserDelete(t *testing.T) {
 
 	ctx = contextwg.WithWaitGroup(ctx, wg)
 
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	_, mongoIp, err := MongoTestServer(pool, ctx)
+	_, mongoIp, err := MongoTestServer(ctx, wg)
 	if err != nil {
 		t.Error(err)
 		return
@@ -58,26 +50,26 @@ func TestUserDelete(t *testing.T) {
 
 	conf.MongoUrl = "mongodb://" + mongoIp + ":27017"
 
-	_, zkIp, err := Zookeeper(pool, ctx)
+	_, zkIp, err := Zookeeper(ctx, wg)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	zookeeperUrl := zkIp + ":2181"
 
-	conf.KafkaUrl, err = Kafka(pool, ctx, zookeeperUrl)
+	conf.KafkaUrl, err = Kafka(ctx, wg, zookeeperUrl)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	_, elasticIp, err := Elasticsearch(pool, ctx, wg)
+	_, elasticIp, err := Elasticsearch(ctx, wg)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	_, permIp, err := PermSearch(pool, ctx, wg, conf.KafkaUrl, elasticIp)
+	_, permIp, err := PermSearch(ctx, wg, false, conf.KafkaUrl, elasticIp)
 	if err != nil {
 		t.Error(err)
 		return
@@ -210,7 +202,7 @@ func testCreateModel(token auth.Token, conf config.Config, count int, createdIds
 	return func(t *testing.T) {
 		for i := 0; i < count; i++ {
 			process := model.Process{}
-			err := jwt_http_router.JwtImpersonate(token.Token).PostJSON("http://localhost:"+conf.ServerPort+"/processes",
+			err := PostJSON(token.Jwt(), "http://localhost:"+conf.ServerPort+"/processes",
 				model.Process{
 					BpmnXml: createTestXmlString("name_" + strconv.Itoa(i)),
 					SvgXml:  "svg",

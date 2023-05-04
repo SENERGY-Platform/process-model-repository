@@ -28,9 +28,6 @@ import (
 )
 
 type Config struct {
-	JwtPubRsa              string `json:"jwt_pub_rsa"`
-	ForceAuth              bool   `json:"force_auth"`
-	ForceUser              bool   `json:"force_user"`
 	LogLevel               string `json:"log_level"` //DEBUG | CALL | NONE
 	ServerPort             string `json:"server_port"`
 	GroupId                string `json:"group_id"`
@@ -47,7 +44,7 @@ type Config struct {
 	KafkaUrl               string `json:"kafka_url"`
 }
 
-//loads config from json in location and used environment variables (e.g ZookeeperUrl --> ZOOKEEPER_URL)
+// loads config from json in location and used environment variables (e.g ZookeeperUrl --> ZOOKEEPER_URL)
 func Load(location string) (config Config, err error) {
 	file, error := os.Open(location)
 	if error != nil {
