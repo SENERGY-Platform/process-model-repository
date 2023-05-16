@@ -12,7 +12,6 @@ import (
 	"github.com/SENERGY-Platform/process-model-repository/lib/model"
 	"github.com/SENERGY-Platform/process-model-repository/lib/source/consumer/listener"
 	"github.com/SENERGY-Platform/process-model-repository/lib/source/producer"
-	"github.com/SENERGY-Platform/process-model-repository/lib/source/util"
 	"github.com/segmentio/kafka-go"
 	"log"
 	"net/http"
@@ -93,16 +92,6 @@ func TestUserDelete(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	broker, err := util.GetBroker(conf.KafkaUrl)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if len(broker) == 0 {
-		t.Error("missing kafka broker")
-		return
-	}
-
 	user1, err := auth.CreateToken("test", "user1")
 	if err != nil {
 		t.Error(err)
@@ -122,7 +111,7 @@ func TestUserDelete(t *testing.T) {
 
 	t.Run("change permissions", func(t *testing.T) {
 		permissions := &kafka.Writer{
-			Addr:        kafka.TCP(broker...),
+			Addr:        kafka.TCP(conf.KafkaUrl),
 			Topic:       conf.PermissionsTopic,
 			MaxAttempts: 10,
 			Logger:      log.New(os.Stdout, "[TEST-KAFKA-PRODUCER] ", 0),
@@ -168,7 +157,7 @@ func TestUserDelete(t *testing.T) {
 
 	t.Run("delete user1", func(t *testing.T) {
 		users := &kafka.Writer{
-			Addr:        kafka.TCP(broker...),
+			Addr:        kafka.TCP(conf.KafkaUrl),
 			Topic:       conf.UsersTopic,
 			MaxAttempts: 10,
 			Logger:      log.New(os.Stdout, "[TEST-KAFKA-PRODUCER] ", 0),

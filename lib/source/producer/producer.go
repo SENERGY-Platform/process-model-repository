@@ -18,12 +18,10 @@ package producer
 
 import (
 	"context"
-	"errors"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
-	"github.com/SENERGY-Platform/process-model-repository/lib/source/util"
 	"github.com/segmentio/kafka-go"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 )
@@ -35,18 +33,11 @@ type Producer struct {
 }
 
 func New(ctx context.Context, conf config.Config) (*Producer, error) {
-	broker, err := util.GetBroker(conf.KafkaUrl)
+	process, err := getProducer(conf.KafkaUrl, conf.ProcessTopic, conf.LogLevel == "DEBUG")
 	if err != nil {
 		return nil, err
 	}
-	if len(broker) == 0 {
-		return nil, errors.New("missing kafka broker")
-	}
-	process, err := getProducer(broker, conf.ProcessTopic, conf.LogLevel == "DEBUG")
-	if err != nil {
-		return nil, err
-	}
-	permissions, err := getProducer(broker, conf.PermissionsTopic, conf.LogLevel == "DEBUG")
+	permissions, err := getProducer(conf.KafkaUrl, conf.PermissionsTopic, conf.LogLevel == "DEBUG")
 	if err != nil {
 		return nil, err
 	}
@@ -59,15 +50,15 @@ func New(ctx context.Context, conf config.Config) (*Producer, error) {
 	return &Producer{config: conf, process: process, permissions: permissions}, nil
 }
 
-func getProducer(broker []string, topic string, debug bool) (writer *kafka.Writer, err error) {
+func getProducer(broker string, topic string, debug bool) (writer *kafka.Writer, err error) {
 	var logger *log.Logger
 	if debug {
 		logger = log.New(os.Stdout, "[KAFKA-PRODUCER] ", 0)
 	} else {
-		logger = log.New(ioutil.Discard, "", 0)
+		logger = log.New(io.Discard, "", 0)
 	}
 	writer = &kafka.Writer{
-		Addr:        kafka.TCP(broker...),
+		Addr:        kafka.TCP(broker),
 		Topic:       topic,
 		Logger:      logger,
 		MaxAttempts: 10,

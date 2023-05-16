@@ -22,26 +22,6 @@ import (
 	"strconv"
 )
 
-func GetBroker(bootstrapUrl string) (brokers []string, err error) {
-	return getBroker(bootstrapUrl)
-}
-
-func getBroker(bootstrapUrl string) (result []string, err error) {
-	conn, err := kafka.Dial("tcp", bootstrapUrl)
-	if err != nil {
-		return result, err
-	}
-	defer conn.Close()
-	brokers, err := conn.Brokers()
-	if err != nil {
-		return result, err
-	}
-	for _, broker := range brokers {
-		result = append(result, net.JoinHostPort(broker.Host, strconv.Itoa(broker.Port)))
-	}
-	return result, nil
-}
-
 func InitTopic(bootstrapUrl string, topics ...string) (err error) {
 	conn, err := kafka.Dial("tcp", bootstrapUrl)
 	if err != nil {

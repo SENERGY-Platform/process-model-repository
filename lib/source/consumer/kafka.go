@@ -23,21 +23,20 @@ import (
 	"github.com/SENERGY-Platform/process-model-repository/lib/source/util"
 	"github.com/segmentio/kafka-go"
 	"io"
-	"io/ioutil"
 	"log"
 	"sync"
 	"time"
 )
 
-func NewConsumer(ctx context.Context, bootstrapUrl string, groupid string, topic string, listener func(topic string, msg []byte) error, errorhandler func(err error, consumer *Consumer)) (consumer *Consumer, err error) {
-	consumer = &Consumer{ctx: ctx, groupId: groupid, bootstrapUrl: bootstrapUrl, topic: topic, listener: listener, errorhandler: errorhandler}
+func NewConsumer(ctx context.Context, broker string, groupid string, topic string, listener func(topic string, msg []byte) error, errorhandler func(err error, consumer *Consumer)) (consumer *Consumer, err error) {
+	consumer = &Consumer{ctx: ctx, groupId: groupid, broker: broker, topic: topic, listener: listener, errorhandler: errorhandler}
 	err = consumer.start()
 	return
 }
 
 type Consumer struct {
 	count        int
-	bootstrapUrl string
+	broker       string
 	groupId      string
 	topic        string
 	ctx          context.Context
@@ -48,24 +47,21 @@ type Consumer struct {
 
 func (this *Consumer) start() error {
 	log.Println("DEBUG: consume topic: \"" + this.topic + "\"")
-	broker, err := util.GetBroker(this.bootstrapUrl)
-	if err != nil {
-		log.Println("ERROR: unable to get broker list", err)
-		return err
-	}
-	err = util.InitTopic(this.bootstrapUrl, this.topic)
+	err := util.InitTopic(this.broker, this.topic)
 	if err != nil {
 		log.Println("WARNING: unable to create topic", err)
 		err = nil
 	}
 	r := kafka.NewReader(kafka.ReaderConfig{
-		CommitInterval: 0, //synchronous commits
-		Brokers:        broker,
-		GroupID:        this.groupId,
-		Topic:          this.topic,
-		MaxWait:        1 * time.Second,
-		Logger:         log.New(ioutil.Discard, "", 0),
-		ErrorLogger:    log.New(ioutil.Discard, "", 0),
+		CommitInterval:         0, //synchronous commits
+		Brokers:                []string{this.broker},
+		GroupID:                this.groupId,
+		Topic:                  this.topic,
+		MaxWait:                1 * time.Second,
+		Logger:                 log.New(io.Discard, "", 0),
+		ErrorLogger:            log.New(io.Discard, "", 0),
+		WatchPartitionChanges:  true,
+		PartitionWatchInterval: time.Minute,
 	})
 	contextwg.Add(this.ctx, 1)
 	go func() {
