@@ -62,13 +62,13 @@ func TestUserDelete(t *testing.T) {
 		return
 	}
 
-	_, elasticIp, err := Elasticsearch(ctx, wg)
+	_, searchIp, err := OpenSearch(ctx, wg)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	_, permIp, err := PermSearch(ctx, wg, false, conf.KafkaUrl, elasticIp)
+	_, permIp, err := PermSearch(ctx, wg, false, conf.KafkaUrl, searchIp)
 	if err != nil {
 		t.Error(err)
 		return

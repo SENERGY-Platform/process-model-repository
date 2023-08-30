@@ -57,7 +57,7 @@ var Zookeeper = docker.Zookeeper
 
 var PermSearch = docker.PermissionSearch
 
-var Elasticsearch = docker.Elasticsearch
+var OpenSearch = docker.OpenSearch
 
 func getFreePort() (int, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
