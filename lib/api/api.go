@@ -21,6 +21,7 @@ import (
 	"github.com/SENERGY-Platform/process-model-repository/lib/api/util"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
+	"github.com/SENERGY-Platform/service-commons/pkg/accesslog"
 	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
@@ -40,7 +41,7 @@ func Start(ctx context.Context, config config.Config, control Controller) {
 	}
 	log.Println("add logging and cors")
 	corsHandler := util.NewCors(router)
-	logger := util.NewLogger(corsHandler, config.LogLevel)
+	logger := accesslog.New(corsHandler)
 	server := &http.Server{Addr: ":" + config.ServerPort, Handler: logger, WriteTimeout: 10 * time.Second, ReadTimeout: 2 * time.Second, ReadHeaderTimeout: 2 * time.Second}
 	go func() {
 		log.Println("Listening on ", server.Addr)
