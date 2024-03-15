@@ -17,78 +17,23 @@
 package auth
 
 import (
-	"errors"
-	"github.com/golang-jwt/jwt"
-	"net/http"
+	"github.com/SENERGY-Platform/service-commons/pkg/jwt"
+	gojwt "github.com/golang-jwt/jwt"
 	"strings"
 	"time"
 )
 
-func GetAuthToken(req *http.Request) string {
-	return req.Header.Get("Authorization")
-}
+var GetAuthToken = jwt.GetAuthToken
+var GetParsedToken = jwt.GetParsedToken
+var Parse = jwt.Parse
 
-func GetParsedToken(req *http.Request) (token Token, err error) {
-	return Parse(GetAuthToken(req))
-}
+type Token = jwt.Token
 
-type Token struct {
-	Token       string      `json:"-"`
-	Sub         string      `json:"sub,omitempty"`
-	RealmAccess RealmAccess `json:"realm_access,omitempty"`
-}
-
-type RealmAccess struct {
-	Roles []string `json:"roles"`
-}
-
-func (this *Token) String() string {
-	return this.Token
-}
-
-func (this *Token) Jwt() string {
-	return this.Token
-}
-
-func (this *Token) Valid() error {
-	if this.Sub == "" {
-		return errors.New("missing subject")
-	}
-	return nil
-}
-
-func Parse(token string) (claims Token, err error) {
-	orig := token
-	if len(token) > 7 && strings.ToLower(token[:7]) == "bearer " {
-		token = token[7:]
-	}
-	_, _, err = new(jwt.Parser).ParseUnverified(token, &claims)
-	if err == nil {
-		claims.Token = orig
-	}
-	return
-}
-
-func (this *Token) IsAdmin() bool {
-	return contains(this.RealmAccess.Roles, "admin")
-}
-
-func (this *Token) GetUserId() string {
-	return this.Sub
-}
-
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
+type RealmAccess = map[string][]string
 
 type KeycloakClaims struct {
 	RealmAccess RealmAccess `json:"realm_access"`
-	jwt.StandardClaims
+	gojwt.StandardClaims
 }
 
 func CreateToken(issuer string, userId string) (token Token, err error) {
@@ -96,17 +41,17 @@ func CreateToken(issuer string, userId string) (token Token, err error) {
 }
 
 func CreateTokenWithRoles(issuer string, userId string, roles []string) (token Token, err error) {
-	realmAccess := RealmAccess{Roles: roles}
+	realmAccess := RealmAccess{"roles": roles}
 	claims := KeycloakClaims{
 		realmAccess,
-		jwt.StandardClaims{
+		gojwt.StandardClaims{
 			ExpiresAt: time.Now().Add(10 * time.Minute).Unix(),
 			Issuer:    issuer,
 			Subject:   userId,
 		},
 	}
 
-	jwtoken := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	jwtoken := gojwt.NewWithClaims(gojwt.SigningMethodRS256, claims)
 	unsignedTokenString, err := jwtoken.SigningString()
 	if err != nil {
 		return token, err
