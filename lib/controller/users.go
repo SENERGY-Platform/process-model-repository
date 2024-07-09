@@ -98,7 +98,7 @@ func (this *Controller) iterateResource(token auth.Token, resource string, batch
 			QueryListCommons: model.QueryListCommons{
 				Limit:    batchsize,
 				Rights:   rights,
-				SortBy:   "name",
+				SortBy:   "id",
 				SortDesc: false,
 			},
 		}
@@ -106,8 +106,7 @@ func (this *Controller) iterateResource(token auth.Token, resource string, batch
 			options.Offset = 0
 		} else {
 			options.After = &client.ListAfter{
-				SortFieldValue: lastElement.Name,
-				Id:             lastElement.Id,
+				Id: lastElement.Id,
 			}
 		}
 		temp, err := client.List[[]PermSearchElement](this.permissionsearch, token.Jwt(), resource, options)

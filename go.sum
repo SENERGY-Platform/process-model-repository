@@ -8,10 +8,10 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/Microsoft/hcsshim v0.12.4 h1:Ev7YUMHAHoWNm+aDSPzc5W9s6E2jyL1szpVDJeZ/Rr4=
 github.com/Microsoft/hcsshim v0.12.4/go.mod h1:Iyl1WVpZzr+UkzjekHZbV8o5Z9ZkxNGx6CtY2Qg/JVQ=
-github.com/SENERGY-Platform/permission-search v0.0.14 h1:RgV63ZuxaqUFjDTWdg5TBavGAI3BHqLnzh9fR3HuRrE=
-github.com/SENERGY-Platform/permission-search v0.0.14/go.mod h1:NlLdAJ0ezJC1KSOf8hzFt9mT0/qWbfN9yFyEh4zM/78=
-github.com/SENERGY-Platform/service-commons v0.0.0-20240423132428-8eccbc027e71 h1:Z3Vj9ImRERXQE5fprE/KGkAsS/dgX0dMesM/cDSN9Tw=
-github.com/SENERGY-Platform/service-commons v0.0.0-20240423132428-8eccbc027e71/go.mod h1:1p2CQPNtler5leXqNgaOfr7DlgZUydrQlQYA97ycm4k=
+github.com/SENERGY-Platform/permission-search v0.0.16 h1:MhKNr9Fnwcf50AguaSb8697ScD0iNw/Tkk1L1ccZnP0=
+github.com/SENERGY-Platform/permission-search v0.0.16/go.mod h1:b2ckm6kM+XuDBZxx+cdv6YbM6SRk2EJi7Ny5ffTWhfc=
+github.com/SENERGY-Platform/service-commons v0.0.0-20240708085423-94423a495d7f h1:5DpZzncRU3bV9pd/0NgysOLGcGWpKH1AKNLCsFYdw4c=
+github.com/SENERGY-Platform/service-commons v0.0.0-20240708085423-94423a495d7f/go.mod h1:1p2CQPNtler5leXqNgaOfr7DlgZUydrQlQYA97ycm4k=
 github.com/aws/aws-sdk-go v1.42.27/go.mod h1:OGr6lGMAKGlG9CVrYnWYDKIyb829c6EVBRjxqjmPepc=
 github.com/beevik/etree v1.4.0 h1:oz1UedHRepuY3p4N5OjE0nK1WLCqtzHf25bxplKOHLs=
 github.com/beevik/etree v1.4.0/go.mod h1:cyWiXwGoasx60gHvtnEh5x8+uIjUVnjWqBvEnhnqKDA=
