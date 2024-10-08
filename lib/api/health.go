@@ -5,7 +5,6 @@ import (
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/julienschmidt/httprouter"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
@@ -19,7 +18,7 @@ const connectivityTestToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzd
 
 func HealthEndpoints(config config.Config, control Controller, router *httprouter.Router) {
 	router.POST("/health", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
-		msg, err := ioutil.ReadAll(request.Body)
+		msg, err := io.ReadAll(request.Body)
 		log.Println("INFO: /health", err, string(msg))
 		writer.WriteHeader(http.StatusOK)
 	})

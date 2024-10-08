@@ -23,6 +23,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
+	"regexp"
+	"strings"
 )
 
 const processIdFieldName = "Id"
@@ -81,15 +83,7 @@ func (this *Mongo) ReadAllPublicProcesses(ctx context.Context) (processes []mode
 	if err != nil {
 		return nil, err
 	}
-	for cursor.Next(context.Background()) {
-		process := model.Process{}
-		err = cursor.Decode(&process)
-		if err != nil {
-			return nil, err
-		}
-		processes = append(processes, process)
-	}
-	err = cursor.Err()
+	err = cursor.All(ctx, &processes)
 	return
 }
 
@@ -101,4 +95,55 @@ func (this *Mongo) SetProcess(ctx context.Context, process model.Process) error 
 func (this *Mongo) DeleteProcess(ctx context.Context, id string) error {
 	_, err := this.processCollection().DeleteOne(ctx, bson.M{processIdKey: id})
 	return err
+}
+
+func (this *Mongo) ListProcesses(ctx context.Context, listOptions model.ListOptions) (result []model.Process, total int64, err error) {
+	opt := options.Find()
+	if listOptions.Limit > 0 {
+		opt.SetLimit(listOptions.Limit)
+	}
+	if listOptions.Offset > 0 {
+		opt.SetSkip(listOptions.Offset)
+	}
+
+	if listOptions.SortBy == "" {
+		listOptions.SortBy = "name.asc"
+	}
+
+	sortby := listOptions.SortBy
+	sortby = strings.TrimSuffix(sortby, ".asc")
+	sortby = strings.TrimSuffix(sortby, ".desc")
+
+	direction := int32(1)
+	if strings.HasSuffix(listOptions.SortBy, ".desc") {
+		direction = int32(-1)
+	}
+	opt.SetSort(bson.D{{sortby, direction}})
+
+	filter := bson.M{}
+	if listOptions.Ids != nil {
+		filter["_id"] = bson.M{"$in": listOptions.Ids}
+	}
+	search := strings.TrimSpace(listOptions.Search)
+	if search != "" {
+		escapedSearch := regexp.QuoteMeta(search)
+		filter["$or"] = []interface{}{
+			bson.M{"name": bson.M{"$regex": escapedSearch, "$options": "i"}},
+			bson.M{"description": bson.M{"$regex": escapedSearch, "$options": "i"}},
+		}
+	}
+
+	cursor, err := this.processCollection().Find(ctx, filter, opt)
+	if err != nil {
+		return result, total, err
+	}
+	err = cursor.All(ctx, &result)
+	if err != nil {
+		return result, total, err
+	}
+	total, err = this.processCollection().CountDocuments(ctx, filter)
+	if err != nil {
+		return result, total, err
+	}
+	return result, total, err
 }

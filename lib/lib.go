@@ -19,7 +19,6 @@ package lib
 import (
 	"context"
 	"github.com/SENERGY-Platform/process-model-repository/lib/api"
-	"github.com/SENERGY-Platform/process-model-repository/lib/com"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/controller"
 	"github.com/SENERGY-Platform/process-model-repository/lib/database"
@@ -30,6 +29,7 @@ import (
 
 /*
 Start initializes
+
 	kafka consumer
 	kafka producer
 	mongodb connection
@@ -53,19 +53,13 @@ func Start(basectx context.Context, conf config.Config) (err error) {
 		return err
 	}
 
-	perm, err := com.NewSecurity(conf)
-	if err != nil {
-		log.Println("ERROR: unable to create permission handler", err)
-		return err
-	}
-
 	p, err := producer.New(ctx, conf)
 	if err != nil {
 		log.Println("ERROR: unable to create producer", err)
 		return err
 	}
 
-	ctrl, err := controller.New(conf, db, perm, p)
+	ctrl, err := controller.New(conf, db, p)
 	if err != nil {
 		log.Println("ERROR: unable to start control", err)
 		return err

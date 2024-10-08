@@ -16,6 +16,8 @@
 
 package model
 
+import "github.com/SENERGY-Platform/permissions-v2/pkg/client"
+
 type AuthAction string
 
 const (
@@ -27,4 +29,19 @@ const (
 
 func (this AuthAction) String() string {
 	return string(this)
+}
+
+func (this AuthAction) ToPermission() client.Permission {
+	right := client.Read
+	switch this {
+	case READ:
+		right = client.Read
+	case WRITE:
+		right = client.Write
+	case ADMINISTRATE:
+		right = client.Administrate
+	case EXECUTE:
+		right = client.Execute
+	}
+	return right
 }

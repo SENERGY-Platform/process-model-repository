@@ -36,7 +36,7 @@ func ProcessListenerFactory(config config.Config, control Controller) (topic str
 		}
 		switch command.Command {
 		case "PUT":
-			return control.SetProcess(command.Processmodel)
+			return control.SetProcess(command.Owner, command.Processmodel)
 		case "DELETE":
 			return control.DeleteProcess(command.Id)
 		case "RIGHTS":

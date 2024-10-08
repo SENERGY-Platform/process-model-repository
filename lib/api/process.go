@@ -24,6 +24,8 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 func init() {
@@ -52,6 +54,79 @@ func ProcessEndpoints(config config.Config, control Controller, router *httprout
 			http.Error(writer, err.Error(), errCode)
 			return
 		}
+		writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		err = json.NewEncoder(writer).Encode(result)
+		if err != nil {
+			log.Println("ERROR: unable to encode response", err)
+		}
+		return
+	})
+
+	//query parameters:
+	//	limit		default 100
+	//	offset
+	//	search
+	//	sort		name.asc
+	//	ids			comma seperated list of process-model ids
+	//	p			r|w|x|a default r
+	//response:
+	//	[]model.Process	in body
+	//	total in X-Total-Count response header
+	router.GET("/v2"+resource, func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
+		token, err := auth.GetParsedToken(request)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		listOptions := model.ListOptions{
+			Limit:  100,
+			Offset: 0,
+		}
+		limitParam := request.URL.Query().Get("limit")
+		if limitParam != "" {
+			listOptions.Limit, err = strconv.ParseInt(limitParam, 10, 64)
+		}
+		if err != nil {
+			http.Error(writer, "unable to parse limit:"+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		offsetParam := request.URL.Query().Get("offset")
+		if offsetParam != "" {
+			listOptions.Offset, err = strconv.ParseInt(offsetParam, 10, 64)
+		}
+		if err != nil {
+			http.Error(writer, "unable to parse offset:"+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		idsParam := request.URL.Query().Get("ids")
+		if request.URL.Query().Has("ids") {
+			if idsParam != "" {
+				listOptions.Ids = strings.Split(strings.TrimSpace(idsParam), ",")
+			} else {
+				listOptions.Ids = []string{}
+			}
+		}
+
+		listOptions.Search = request.URL.Query().Get("search")
+		listOptions.SortBy = request.URL.Query().Get("sort")
+		if listOptions.SortBy == "" {
+			listOptions.SortBy = "name.asc"
+		}
+
+		listOptions.Permission = model.AuthAction(request.URL.Query().Get("p"))
+		if listOptions.Permission == "" {
+			listOptions.Permission = model.READ
+		}
+
+		result, total, err, errCode := control.ListProcesses(token, listOptions)
+		if err != nil {
+			http.Error(writer, err.Error(), errCode)
+			return
+		}
+		writer.Header().Set("X-Total-Count", strconv.FormatInt(total, 10))
 		writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 		err = json.NewEncoder(writer).Encode(result)
 		if err != nil {

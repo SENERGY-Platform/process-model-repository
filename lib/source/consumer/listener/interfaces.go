@@ -21,7 +21,7 @@ import (
 )
 
 type Controller interface {
-	SetProcess(process model.Process) error
+	SetProcess(owner string, process model.Process) error
 	DeleteProcess(id string) error
 	HandleUserDelete(userId string) error
 }

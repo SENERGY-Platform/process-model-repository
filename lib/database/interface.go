@@ -26,4 +26,5 @@ type Database interface {
 	ReadAllPublicProcesses(ctx context.Context) ([]model.Process, error)
 	SetProcess(ctx context.Context, process model.Process) error
 	DeleteProcess(ctx context.Context, id string) error
+	ListProcesses(ctx context.Context, options model.ListOptions) ([]model.Process, int64, error)
 }

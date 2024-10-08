@@ -33,8 +33,8 @@ type Config struct {
 	GroupId                string `json:"group_id"`
 	ProcessTopic           string `json:"process_topic"`
 	UsersTopic             string `json:"users_topic"`
-	PermissionsTopic       string `json:"permissions_topic"`
-	PermissionsUrl         string `json:"permissions_url"`
+	PermissionsUrl         string `json:"permissions_url"` //only for migration
+	PermissionsV2Url       string `json:"permissions_v2_url"`
 	MongoUrl               string `json:"mongo_url"`
 	MongoReplSet           bool   `json:"mongo_repl_set"` //set true if mongodb is configured as replication set or mongos and is able to handle transactions
 	MongoTable             string `json:"mongo_table"`
@@ -42,6 +42,7 @@ type Config struct {
 	Debug                  bool   `json:"debug"`
 	ConnectivityTest       bool   `json:"connectivity_test"`
 	KafkaUrl               string `json:"kafka_url"`
+	RunStartupMigration    bool   `json:"run_startup_migration"`
 }
 
 // loads config from json in location and used environment variables (e.g ZookeeperUrl --> ZOOKEEPER_URL)

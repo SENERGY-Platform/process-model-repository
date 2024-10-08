@@ -17,26 +17,35 @@
 package controller
 
 import (
-	"github.com/SENERGY-Platform/permission-search/lib/client"
+	"github.com/SENERGY-Platform/permissions-v2/pkg/client"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/database"
 )
 
-func New(config config.Config, db database.Database, security Security, producer Producer) (ctrl *Controller, err error) {
+func New(config config.Config, db database.Database, producer Producer) (ctrl *Controller, err error) {
 	ctrl = &Controller{
-		db:               db,
-		producer:         producer,
-		security:         security,
-		config:           config,
-		permissionsearch: client.NewClient(config.PermissionsUrl),
+		db:       db,
+		producer: producer,
+		config:   config,
+		perm:     client.New(config.PermissionsV2Url),
 	}
-	return
+	_, err, _ = ctrl.perm.SetTopic(client.InternalAdminToken, client.Topic{
+		Id:                  config.ProcessTopic,
+		PublishToKafkaTopic: config.ProcessTopic,
+	})
+	if err != nil {
+		return nil, err
+	}
+	err = ctrl.RunMigrations()
+	if err != nil {
+		return nil, err
+	}
+	return ctrl, nil
 }
 
 type Controller struct {
-	db               database.Database
-	security         Security
-	producer         Producer
-	config           config.Config
-	permissionsearch client.Client
+	db       database.Database
+	producer Producer
+	config   config.Config
+	perm     client.Client
 }

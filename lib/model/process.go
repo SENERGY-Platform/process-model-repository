@@ -8,6 +8,15 @@ import (
 	"runtime/debug"
 )
 
+type ListOptions struct {
+	Ids        []string //filter; ignores limit/offset if Ids != nil; ignored if Ids == nil; Ids == []string{} will return an empty list;
+	Search     string
+	Limit      int64      //default 100, will be ignored if 'ids' is set (Ids != nil)
+	Offset     int64      //default 0, will be ignored if 'ids' is set (Ids != nil)
+	SortBy     string     //default name.asc
+	Permission AuthAction //defaults to read
+}
+
 type Process struct {
 	Id          string `json:"_id" bson:"_id"`
 	Name        string `json:"name" bson:"name"`

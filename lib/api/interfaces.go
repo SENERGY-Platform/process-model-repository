@@ -23,6 +23,7 @@ import (
 
 type Controller interface {
 	ReadProcess(token auth.Token, id string, action model.AuthAction) (result model.Process, err error, errCode int)
+	ListProcesses(token auth.Token, options model.ListOptions) ([]model.Process, int64, error, int)
 	ReadAllPublicProcess() ([]model.Process, error, int)
 	PublishProcessCreate(token auth.Token, process model.Process) (model.Process, error, int)
 	PublishProcessUpdate(token auth.Token, id string, process model.Process) (model.Process, error, int)

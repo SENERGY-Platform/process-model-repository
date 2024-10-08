@@ -5,13 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/SENERGY-Platform/permissions-v2/pkg/client"
 	"github.com/SENERGY-Platform/process-model-repository/lib"
 	"github.com/SENERGY-Platform/process-model-repository/lib/auth"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
 	"github.com/SENERGY-Platform/process-model-repository/lib/model"
 	"github.com/SENERGY-Platform/process-model-repository/lib/source/consumer/listener"
-	"github.com/SENERGY-Platform/process-model-repository/lib/source/producer"
 	"github.com/segmentio/kafka-go"
 	"log"
 	"net/http"
@@ -19,6 +19,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -62,20 +63,14 @@ func TestUserDelete(t *testing.T) {
 		return
 	}
 
-	_, searchIp, err := OpenSearch(ctx, wg)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	_, permIp, err := PermSearch(ctx, wg, false, conf.KafkaUrl, searchIp)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	conf.PermissionsUrl = "http://" + permIp + ":8080"
-
 	time.Sleep(10 * time.Second)
+
+	_, permIp, err := PermissionsV2(ctx, wg, conf.MongoUrl, conf.KafkaUrl)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	conf.PermissionsV2Url = "http://" + permIp + ":8080"
 
 	port, err := getFreePort()
 	if err != nil {
@@ -110,15 +105,9 @@ func TestUserDelete(t *testing.T) {
 	time.Sleep(20 * time.Second)
 
 	t.Run("change permissions", func(t *testing.T) {
-		permissions := &kafka.Writer{
-			Addr:        kafka.TCP(conf.KafkaUrl),
-			Topic:       conf.PermissionsTopic,
-			MaxAttempts: 10,
-			Logger:      log.New(os.Stdout, "[TEST-KAFKA-PRODUCER] ", 0),
-		}
 		for i := 0; i < 4; i++ {
 			id := processModelIds[i]
-			err = setPermission(permissions, conf, user2.GetUserId(), id, "rwxa")
+			err = setPermission(conf, user2.GetUserId(), id, "rwxa")
 			if err != nil {
 				t.Error(err)
 				return
@@ -126,7 +115,7 @@ func TestUserDelete(t *testing.T) {
 		}
 		for i := 10; i < 15; i++ {
 			id := processModelIds[i]
-			err = setPermission(permissions, conf, user1.GetUserId(), id, "rwxa")
+			err = setPermission(conf, user1.GetUserId(), id, "rwxa")
 			if err != nil {
 				t.Error(err)
 				return
@@ -134,7 +123,7 @@ func TestUserDelete(t *testing.T) {
 		}
 		for i := 2; i < 4; i++ {
 			id := processModelIds[i]
-			err = setPermission(permissions, conf, user1.GetUserId(), id, "rx")
+			err = setPermission(conf, user1.GetUserId(), id, "rx")
 			if err != nil {
 				t.Error(err)
 				return
@@ -142,7 +131,7 @@ func TestUserDelete(t *testing.T) {
 		}
 		for i := 12; i < 14; i++ {
 			id := processModelIds[i]
-			err = setPermission(permissions, conf, user2.GetUserId(), id, "rx")
+			err = setPermission(conf, user2.GetUserId(), id, "rx")
 			if err != nil {
 				t.Error(err)
 				return
@@ -219,7 +208,7 @@ func checkUserProcesses(conf config.Config, token auth.Token, expectedIdsOrig []
 			return
 		}
 
-		req, err := http.NewRequest("GET", conf.PermissionsUrl+"/v3/resources/processmodel?rights=r&limit=100", nil)
+		req, err := http.NewRequest("GET", "http://localhost:"+conf.ServerPort+"/v2/processes?rights=r&limit=100", nil)
 		if err != nil {
 			t.Error(err)
 			return
@@ -250,9 +239,9 @@ func checkUserProcesses(conf config.Config, token auth.Token, expectedIdsOrig []
 		}
 		actualIds := []string{}
 		for _, processe := range processes {
-			id, ok := processe["id"].(string)
+			id, ok := processe["_id"].(string)
 			if !ok {
-				t.Error("expect process id to be string", processe)
+				t.Errorf("expect process id to be string, got %#v \n%#v\n", processe["_id"], processe)
 				return
 			}
 			actualIds = append(actualIds, id)
@@ -269,25 +258,18 @@ func checkUserProcesses(conf config.Config, token auth.Token, expectedIdsOrig []
 	}
 }
 
-func setPermission(permissions *kafka.Writer, conf config.Config, userId string, id string, right string) error {
-	cmd := producer.PermCommandMsg{
-		Command:  "PUT",
-		Kind:     conf.ProcessTopic,
-		Resource: id,
-		User:     userId,
-		Right:    right,
-	}
-	message, err := json.Marshal(cmd)
-	if err != nil {
+func setPermission(conf config.Config, userId string, id string, right string) error {
+	c := client.New(conf.PermissionsV2Url)
+	old, err, code := c.GetResource(client.InternalAdminToken, conf.ProcessTopic, id)
+	if err != nil && code != http.StatusNotFound {
 		return err
 	}
-	err = permissions.WriteMessages(
-		context.Background(),
-		kafka.Message{
-			Key:   []byte(userId + "_" + conf.ProcessTopic + "_" + id),
-			Value: message,
-			Time:  time.Now(),
-		},
-	)
+	old.UserPermissions[userId] = client.PermissionsMap{
+		Read:         strings.Contains(right, "r"),
+		Write:        strings.Contains(right, "2"),
+		Execute:      strings.Contains(right, "x"),
+		Administrate: strings.Contains(right, "a"),
+	}
+	_, err, _ = c.SetPermission(client.InternalAdminToken, conf.ProcessTopic, id, old.ResourcePermissions)
 	return err
 }

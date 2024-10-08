@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/SENERGY-Platform/process-model-repository/lib"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
@@ -13,7 +12,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/http/httptest"
 	"reflect"
 	"strconv"
 	"sync"
@@ -58,13 +56,14 @@ func Test(t *testing.T) {
 		return
 	}
 
-	permsearch := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "true")
-	}))
-	defer permsearch.Close()
-	conf.PermissionsUrl = permsearch.URL
-
 	time.Sleep(2 * time.Second)
+
+	_, permIp, err := PermissionsV2(ctx, wg, conf.MongoUrl, conf.KafkaUrl)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	conf.PermissionsV2Url = "http://" + permIp + ":8080"
 
 	port, err := getFreePort()
 	if err != nil {

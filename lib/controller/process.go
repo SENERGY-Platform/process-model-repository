@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/SENERGY-Platform/permissions-v2/pkg/client"
 	"github.com/SENERGY-Platform/process-model-repository/lib/auth"
 	"github.com/SENERGY-Platform/process-model-repository/lib/model"
 	"github.com/beevik/etree"
@@ -37,7 +38,7 @@ import (
 const TIMEOUT = 10 * time.Second
 
 func (this *Controller) ReadProcess(token auth.Token, id string, action model.AuthAction) (result model.Process, err error, errCode int) {
-	access, err := this.security.CheckBool(token, this.config.ProcessTopic, id, action)
+	access, err := this.checkBool(token, this.config.ProcessTopic, id, action)
 	if err != nil {
 		return result, err, http.StatusInternalServerError
 	}
@@ -62,6 +63,49 @@ func (this *Controller) ReadAllPublicProcess() (result []model.Process, err erro
 		return result, err, http.StatusInternalServerError
 	}
 	return result, nil, http.StatusOK
+}
+
+func (this *Controller) ListProcesses(token auth.Token, options model.ListOptions) (result []model.Process, total int64, err error, code int) {
+	ids := []string{}
+	//check permissions
+	if options.Ids == nil {
+		if token.IsAdmin() {
+			ids = nil //no auth check for admins -> no id filter
+		} else {
+			ids, err, _ = this.perm.ListAccessibleResourceIds(token.Jwt(), this.config.ProcessTopic, client.ListOptions{}, options.Permission.ToPermission())
+			if err != nil {
+				return result, total, err, http.StatusInternalServerError
+			}
+		}
+	} else {
+		options.Limit = 0
+		options.Offset = 0
+		idMap, err, _ := this.perm.CheckMultiplePermissions(token.Jwt(), this.config.ProcessTopic, options.Ids, options.Permission.ToPermission())
+		if err != nil {
+			return result, total, err, http.StatusInternalServerError
+		}
+		for id, ok := range idMap {
+			if ok {
+				ids = append(ids, id)
+			}
+		}
+	}
+	options.Ids = ids
+	ctx, _ := context.WithTimeout(context.Background(), TIMEOUT)
+	result, total, err = this.db.ListProcesses(ctx, options)
+	if err != nil {
+		return result, total, err, http.StatusInternalServerError
+	}
+	return result, total, err, http.StatusOK
+}
+
+func (this *Controller) checkBool(token auth.Token, kind string, id string, action model.AuthAction) (allowed bool, err error) {
+	if token.IsAdmin() {
+		return true, nil
+	}
+
+	allowed, err, _ = this.perm.CheckPermission(token.Jwt(), kind, id, action.ToPermission())
+	return allowed, err
 }
 
 func (this *Controller) PublishProcessCreate(token auth.Token, process model.Process) (result model.Process, err error, code int) {
@@ -136,7 +180,7 @@ func (this *Controller) PublishProcessPublicUpdate(token auth.Token, id string, 
 }
 
 func (this *Controller) PublishProcessDelete(token auth.Token, id string) (error, int) {
-	access, err := this.security.CheckBool(token, this.config.ProcessTopic, id, model.ADMINISTRATE)
+	access, err := this.checkBool(token, this.config.ProcessTopic, id, model.ADMINISTRATE)
 	if err != nil {
 		return err, http.StatusInternalServerError
 	}
@@ -175,12 +219,35 @@ func (this *Controller) GetProcessModelName(bpmn string) (name string, err error
 //		source
 /////////////////////////
 
-func (this *Controller) SetProcess(process model.Process) error {
+func (this *Controller) SetProcess(owner string, process model.Process) error {
+	_, err, code := this.perm.GetResource(client.InternalAdminToken, this.config.ProcessTopic, process.Id)
+	if err != nil && code != http.StatusNotFound {
+		return err
+	}
+	if code == http.StatusNotFound {
+		_, err, _ = this.perm.SetPermission(client.InternalAdminToken, this.config.ProcessTopic, process.Id, client.ResourcePermissions{
+			UserPermissions: map[string]client.PermissionsMap{
+				owner: {
+					Read:         true,
+					Write:        true,
+					Execute:      true,
+					Administrate: true,
+				},
+			},
+		})
+		if err != nil {
+			return err
+		}
+	}
 	ctx, _ := context.WithTimeout(context.Background(), TIMEOUT)
 	return this.db.SetProcess(ctx, process)
 }
 
 func (this *Controller) DeleteProcess(id string) error {
 	ctx, _ := context.WithTimeout(context.Background(), TIMEOUT)
+	err, _ := this.perm.RemoveResource(client.InternalAdminToken, this.config.ProcessTopic, id)
+	if err != nil {
+		return err
+	}
 	return this.db.DeleteProcess(ctx, id)
 }
