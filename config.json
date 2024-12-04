@@ -3,7 +3,6 @@
     "log_level": "CALL",
     "process_topic": "processmodel",
     "users_topic": "user",
-    "permissions_url": "",
     "permissions_v2_url": "http://permv2.permissions:8080",
     "mongo_url": "mongodb://localhost:27017",
     "mongo_table": "process-repository",

@@ -3,7 +3,7 @@ package tests
 import (
 	"context"
 	"fmt"
-	"github.com/SENERGY-Platform/permission-search/lib/tests/docker"
+	"github.com/SENERGY-Platform/permissions-v2/pkg/tests/docker"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"io"
@@ -63,10 +63,6 @@ func MongoTestServer(ctx context.Context, wg *sync.WaitGroup) (hostport string, 
 var Kafka = docker.Kafka
 
 var Zookeeper = docker.Zookeeper
-
-var PermSearch = docker.PermissionSearch
-
-var OpenSearch = docker.OpenSearch
 
 func PermissionsV2(ctx context.Context, wg *sync.WaitGroup, mongoUrl string, kafkaUrl string) (hostPort string, ipAddress string, err error) {
 	log.Println("start permissions-v2")
