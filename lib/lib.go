@@ -23,8 +23,8 @@ import (
 	"github.com/SENERGY-Platform/process-model-repository/lib/controller"
 	"github.com/SENERGY-Platform/process-model-repository/lib/database"
 	"github.com/SENERGY-Platform/process-model-repository/lib/source/consumer"
-	"github.com/SENERGY-Platform/process-model-repository/lib/source/producer"
 	"log"
+	"time"
 )
 
 /*
@@ -41,34 +41,40 @@ if context contains a waitgroup as value (github.com/SENERGY-Platform/process-mo
 the waitgroup is informed about successfull close/disconnect
 */
 func Start(basectx context.Context, conf config.Config) (err error) {
+	_, _, err = StartGetInternals(basectx, conf)
+	return err
+}
+
+func StartGetInternals(basectx context.Context, conf config.Config) (db database.Database, ctrl *controller.Controller, err error) {
 	ctx, cancel := context.WithCancel(basectx)
 	defer func() {
 		if err != nil {
 			cancel()
 		}
 	}()
-	db, err := database.New(ctx, conf)
+	db, err = database.New(ctx, conf)
 	if err != nil {
 		log.Println("ERROR: unable to connect to database", err)
-		return err
+		return db, ctrl, err
 	}
 
-	p, err := producer.New(ctx, conf)
-	if err != nil {
-		log.Println("ERROR: unable to create producer", err)
-		return err
-	}
-
-	ctrl, err := controller.New(conf, db, p)
+	ctrl, err = controller.New(conf, db)
 	if err != nil {
 		log.Println("ERROR: unable to start control", err)
-		return err
+		return db, ctrl, err
 	}
+
+	cleanupInterval, err := time.ParseDuration(conf.CleanupInterval)
+	if err != nil {
+		log.Println("ERROR: unable to parse cleanup interval", err)
+		return db, ctrl, err
+	}
+	ctrl.StartCleanupLoop(ctx, cleanupInterval)
 
 	err = consumer.Start(ctx, conf, ctrl)
 	if err != nil {
 		log.Println("ERROR: unable to start source", err)
-		return err
+		return db, ctrl, err
 	}
 
 	api.Start(ctx, conf, ctrl)

@@ -12,5 +12,6 @@
     "group_id": "process-model-repository",
     "debug": true,
     "connectivity_test": true,
-    "run_startup_migration": true
+    "run_startup_migration": true,
+    "cleanup_interval": "6h"
 }

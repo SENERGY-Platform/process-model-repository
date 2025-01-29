@@ -22,12 +22,11 @@ import (
 	"github.com/SENERGY-Platform/process-model-repository/lib/database"
 )
 
-func New(config config.Config, db database.Database, producer Producer) (ctrl *Controller, err error) {
+func New(config config.Config, db database.Database) (ctrl *Controller, err error) {
 	ctrl = &Controller{
-		db:       db,
-		producer: producer,
-		config:   config,
-		perm:     client.New(config.PermissionsV2Url),
+		db:     db,
+		config: config,
+		perm:   client.New(config.PermissionsV2Url),
 	}
 	_, err, _ = ctrl.perm.SetTopic(client.InternalAdminToken, client.Topic{
 		Id:                  config.ProcessTopic,
@@ -44,8 +43,7 @@ func New(config config.Config, db database.Database, producer Producer) (ctrl *C
 }
 
 type Controller struct {
-	db       database.Database
-	producer Producer
-	config   config.Config
-	perm     client.Client
+	db     database.Database
+	config config.Config
+	perm   client.Client
 }

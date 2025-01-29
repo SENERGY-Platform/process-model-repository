@@ -161,7 +161,7 @@ func ProcessEndpoints(config config.Config, control Controller, router *httprout
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-		result, err, code := control.PublishProcessCreate(token, process)
+		result, err, code := control.CreateProcess(token, process)
 		if err != nil {
 			http.Error(writer, err.Error(), code)
 			return
@@ -187,7 +187,7 @@ func ProcessEndpoints(config config.Config, control Controller, router *httprout
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-		result, err, code := control.PublishProcessUpdate(token, id, process)
+		result, err, code := control.UpdateProcess(token, id, process)
 		if err != nil {
 			http.Error(writer, err.Error(), code)
 			return
@@ -212,7 +212,7 @@ func ProcessEndpoints(config config.Config, control Controller, router *httprout
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-		result, err, code := control.PublishProcessPublicUpdate(token, id, public)
+		result, err, code := control.UpdateProcessPublic(token, id, public)
 		if err != nil {
 			http.Error(writer, err.Error(), code)
 			return
@@ -231,7 +231,7 @@ func ProcessEndpoints(config config.Config, control Controller, router *httprout
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-		err, code := control.PublishProcessDelete(token, id)
+		err, code := control.DeleteProcess(token, id)
 		if err != nil {
 			http.Error(writer, err.Error(), code)
 			return

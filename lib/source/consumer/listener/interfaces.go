@@ -16,12 +16,6 @@
 
 package listener
 
-import (
-	"github.com/SENERGY-Platform/process-model-repository/lib/model"
-)
-
 type Controller interface {
-	SetProcess(owner string, process model.Process) error
-	DeleteProcess(id string) error
 	HandleUserDelete(userId string) error
 }

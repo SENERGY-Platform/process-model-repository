@@ -18,6 +18,7 @@ package mongo
 
 import (
 	"context"
+	"errors"
 	"github.com/SENERGY-Platform/process-model-repository/lib/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -25,6 +26,7 @@ import (
 	"log"
 	"regexp"
 	"strings"
+	"time"
 )
 
 const processIdFieldName = "Id"
@@ -58,12 +60,12 @@ func init() {
 	})
 }
 
-func (this *Mongo) processCollection() *mongo.Collection {
+func (this *Mongo) ProcessCollection() *mongo.Collection {
 	return this.client.Database(this.config.MongoTable).Collection(this.config.MongoProcessCollection)
 }
 
 func (this *Mongo) ReadProcess(ctx context.Context, id string) (process model.Process, exists bool, err error) {
-	result := this.processCollection().FindOne(ctx, bson.M{processIdKey: id})
+	result := this.ProcessCollection().FindOne(ctx, bson.M{processIdKey: id})
 	err = result.Err()
 	if err == mongo.ErrNoDocuments {
 		return process, false, nil
@@ -79,7 +81,7 @@ func (this *Mongo) ReadProcess(ctx context.Context, id string) (process model.Pr
 }
 
 func (this *Mongo) ReadAllPublicProcesses(ctx context.Context) (processes []model.Process, err error) {
-	cursor, err := this.processCollection().Find(ctx, bson.M{processPublicKey: true})
+	cursor, err := this.ProcessCollection().Find(ctx, bson.M{processPublicKey: true})
 	if err != nil {
 		return nil, err
 	}
@@ -88,12 +90,15 @@ func (this *Mongo) ReadAllPublicProcesses(ctx context.Context) (processes []mode
 }
 
 func (this *Mongo) SetProcess(ctx context.Context, process model.Process) error {
-	_, err := this.processCollection().ReplaceOne(ctx, bson.M{processIdKey: process.Id}, process, options.Replace().SetUpsert(true))
+	if process.LastUpdatedUnix == 0 {
+		process.LastUpdatedUnix = time.Now().Unix()
+	}
+	_, err := this.ProcessCollection().ReplaceOne(ctx, bson.M{processIdKey: process.Id}, process, options.Replace().SetUpsert(true))
 	return err
 }
 
 func (this *Mongo) DeleteProcess(ctx context.Context, id string) error {
-	_, err := this.processCollection().DeleteOne(ctx, bson.M{processIdKey: id})
+	_, err := this.ProcessCollection().DeleteMany(ctx, bson.M{processIdKey: id})
 	return err
 }
 
@@ -133,7 +138,7 @@ func (this *Mongo) ListProcesses(ctx context.Context, listOptions model.ListOpti
 		}
 	}
 
-	cursor, err := this.processCollection().Find(ctx, filter, opt)
+	cursor, err := this.ProcessCollection().Find(ctx, filter, opt)
 	if err != nil {
 		return result, total, err
 	}
@@ -141,9 +146,51 @@ func (this *Mongo) ListProcesses(ctx context.Context, listOptions model.ListOpti
 	if err != nil {
 		return result, total, err
 	}
-	total, err = this.processCollection().CountDocuments(ctx, filter)
+	total, err = this.ProcessCollection().CountDocuments(ctx, filter)
 	if err != nil {
 		return result, total, err
 	}
 	return result, total, err
+}
+
+var CleanupLastUpdateTimeBuffer = time.Minute
+
+func (this *Mongo) CheckIdList(ids []string) (missingInDb []string, missingInInput []string, err error) {
+	idList, err := this.ProcessCollection().Distinct(context.Background(), processIdKey, bson.M{})
+	if err != nil {
+		return nil, nil, err
+	}
+	knownIds := map[string]bool{}
+	for _, id := range idList {
+		idString, ok := id.(string)
+		if !ok {
+			return nil, nil, errors.New("db id is not a string")
+		}
+		knownIds[idString] = true
+	}
+	for _, id := range ids {
+		if !knownIds[id] {
+			missingInDb = append(missingInDb, id)
+		}
+	}
+
+	missingInInputList, err := this.ProcessCollection().Distinct(context.Background(), processIdKey, bson.M{
+		processIdKey: bson.M{"$nin": ids},
+		"$or": []interface{}{
+			bson.M{"last_updated_unix": bson.M{"$exists": false}},
+			bson.M{"last_updated_unix": bson.M{"$lt": time.Now().Add(-CleanupLastUpdateTimeBuffer).Unix()}},
+		},
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, id := range missingInInputList {
+		idString, ok := id.(string)
+		if !ok {
+			return nil, nil, errors.New("db id is not a string")
+		}
+		missingInInput = append(missingInInput, idString)
+	}
+
+	return missingInDb, missingInInput, nil
 }

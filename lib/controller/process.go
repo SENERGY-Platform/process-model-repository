@@ -103,12 +103,11 @@ func (this *Controller) checkBool(token auth.Token, kind string, id string, acti
 	if token.IsAdmin() {
 		return true, nil
 	}
-
 	allowed, err, _ = this.perm.CheckPermission(token.Jwt(), kind, id, action.ToPermission())
 	return allowed, err
 }
 
-func (this *Controller) PublishProcessCreate(token auth.Token, process model.Process) (result model.Process, err error, code int) {
+func (this *Controller) CreateProcess(token auth.Token, process model.Process) (result model.Process, err error, code int) {
 	process.Id = uuid.NewString()
 	if process.Name == "" {
 		process.Name, err = this.GetProcessModelName(process.BpmnXml)
@@ -121,14 +120,17 @@ func (this *Controller) PublishProcessCreate(token auth.Token, process model.Pro
 		return result, err, http.StatusBadRequest
 	}
 	process.Owner = token.GetUserId()
-	err = this.producer.PublishProcessPut(process.Id, token.GetUserId(), process)
+	process.LastUpdatedUnix = time.Now().Unix()
+	err = this.SetProcess(token.GetUserId(), process)
 	if err != nil {
+		ctx, _ := context.WithTimeout(context.Background(), TIMEOUT)
+		this.db.DeleteProcess(ctx, process.Id)
 		return result, err, http.StatusInternalServerError
 	}
 	return process, nil, http.StatusOK
 }
 
-func (this *Controller) PublishProcessUpdate(token auth.Token, id string, process model.Process) (result model.Process, err error, code int) {
+func (this *Controller) UpdateProcess(token auth.Token, id string, process model.Process) (result model.Process, err error, code int) {
 	if process.Id != id {
 		return result, errors.New("path id != process.id"), http.StatusBadRequest
 	}
@@ -147,39 +149,40 @@ func (this *Controller) PublishProcessUpdate(token auth.Token, id string, proces
 	} else {
 		process.Owner = token.GetUserId()
 	}
+	process.LastUpdatedUnix = time.Now().Unix()
 	err = process.Validate()
 	if err != nil {
 		return result, err, http.StatusBadRequest
 	}
-	err = this.producer.PublishProcessPut(process.Id, token.GetUserId(), process)
+	err = this.SetProcess(token.GetUserId(), process)
 	if err != nil {
 		return result, err, http.StatusInternalServerError
 	}
 	return process, nil, http.StatusOK
 }
 
-func (this *Controller) PublishProcessPublicUpdate(token auth.Token, id string, publicCommand model.PublicCommand) (result model.Process, err error, code int) {
+func (this *Controller) UpdateProcessPublic(token auth.Token, id string, publicCommand model.PublicCommand) (result model.Process, err error, code int) {
 	process, err, code := this.ReadProcess(token, id, model.WRITE)
 	if err != nil {
 		return result, err, code
 	}
-
 	process.Publish = publicCommand.Publish
 	process.PublishDate = time.Now().String()
+	process.LastUpdatedUnix = time.Now().Unix()
 	if process.Publish {
 		process.Description = publicCommand.Description
 	} else {
 		process.Description = ""
 	}
 
-	err = this.producer.PublishProcessPut(process.Id, token.GetUserId(), process)
+	err = this.SetProcess(token.GetUserId(), process)
 	if err != nil {
 		return result, err, http.StatusInternalServerError
 	}
 	return process, nil, http.StatusOK
 }
 
-func (this *Controller) PublishProcessDelete(token auth.Token, id string) (error, int) {
+func (this *Controller) DeleteProcess(token auth.Token, id string) (error, int) {
 	access, err := this.checkBool(token, this.config.ProcessTopic, id, model.ADMINISTRATE)
 	if err != nil {
 		return err, http.StatusInternalServerError
@@ -187,7 +190,16 @@ func (this *Controller) PublishProcessDelete(token auth.Token, id string) (error
 	if !access {
 		return errors.New("access denied"), http.StatusForbidden
 	}
-	err = this.producer.PublishProcessDelete(id, token.GetUserId())
+	return this.deleteProcess(id)
+}
+
+func (this *Controller) deleteProcess(id string) (error, int) {
+	ctx, _ := context.WithTimeout(context.Background(), TIMEOUT)
+	err, _ := this.perm.RemoveResource(client.InternalAdminToken, this.config.ProcessTopic, id)
+	if err != nil {
+		return err, http.StatusInternalServerError
+	}
+	err = this.db.DeleteProcess(ctx, id)
 	if err != nil {
 		return err, http.StatusInternalServerError
 	}
@@ -215,11 +227,15 @@ func (this *Controller) GetProcessModelName(bpmn string) (name string, err error
 	return name, nil
 }
 
-/////////////////////////
-//		source
-/////////////////////////
-
 func (this *Controller) SetProcess(owner string, process model.Process) error {
+	ctx, _ := context.WithTimeout(context.Background(), TIMEOUT)
+	if process.LastUpdatedUnix == 0 {
+		process.LastUpdatedUnix = time.Now().Unix()
+	}
+	err := this.db.SetProcess(ctx, process)
+	if err != nil {
+		return err
+	}
 	_, err, code := this.perm.GetResource(client.InternalAdminToken, this.config.ProcessTopic, process.Id)
 	if err != nil && code != http.StatusNotFound {
 		return err
@@ -239,15 +255,5 @@ func (this *Controller) SetProcess(owner string, process model.Process) error {
 			return err
 		}
 	}
-	ctx, _ := context.WithTimeout(context.Background(), TIMEOUT)
-	return this.db.SetProcess(ctx, process)
-}
-
-func (this *Controller) DeleteProcess(id string) error {
-	ctx, _ := context.WithTimeout(context.Background(), TIMEOUT)
-	err, _ := this.perm.RemoveResource(client.InternalAdminToken, this.config.ProcessTopic, id)
-	if err != nil {
-		return err
-	}
-	return this.db.DeleteProcess(ctx, id)
+	return nil
 }

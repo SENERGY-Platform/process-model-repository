@@ -17,7 +17,7 @@ func (this *Controller) HandleUserDelete(userId string) error {
 		return err
 	}
 	for _, id := range processModelsToDelete {
-		err = this.producer.PublishProcessDelete(id, userId)
+		err, _ = this.deleteProcess(id)
 		if err != nil {
 			return err
 		}

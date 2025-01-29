@@ -18,15 +18,16 @@ type ListOptions struct {
 }
 
 type Process struct {
-	Id          string `json:"_id" bson:"_id"`
-	Name        string `json:"name" bson:"name"`
-	Date        int64  `json:"date" bson:"date"`
-	Owner       string `json:"owner" bson:"owner"`
-	BpmnXml     string `json:"bpmn_xml" bson:"bpmn_xml"`
-	SvgXml      string `json:"svgXML" bson:"svgXML"`
-	Publish     bool   `json:"publish" bson:"publish"`
-	PublishDate string `json:"publish_date" bson:"publish_date"`
-	Description string `json:"description" bson:"description"`
+	Id              string `json:"_id" bson:"_id"`
+	Name            string `json:"name" bson:"name"`
+	Date            int64  `json:"date" bson:"date"`
+	Owner           string `json:"owner" bson:"owner"`
+	BpmnXml         string `json:"bpmn_xml" bson:"bpmn_xml"`
+	SvgXml          string `json:"svgXML" bson:"svgXML"`
+	Publish         bool   `json:"publish" bson:"publish"`
+	PublishDate     string `json:"publish_date" bson:"publish_date"`
+	Description     string `json:"description" bson:"description"`
+	LastUpdatedUnix int64  `json:"last_updated_unix" bson:"last_updated_unix"`
 }
 
 type PublicCommand struct {
