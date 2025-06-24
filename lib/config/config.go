@@ -43,6 +43,8 @@ type Config struct {
 	KafkaUrl               string `json:"kafka_url"`
 	RunStartupMigration    bool   `json:"run_startup_migration"`
 	CleanupInterval        string `json:"cleanup_interval"`
+
+	InitTopics bool
 }
 
 // loads config from json in location and used environment variables (e.g ZookeeperUrl --> ZOOKEEPER_URL)

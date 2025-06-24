@@ -28,8 +28,8 @@ import (
 	"time"
 )
 
-func NewConsumer(ctx context.Context, broker string, groupid string, topic string, listener func(topic string, msg []byte) error, errorhandler func(err error, consumer *Consumer)) (consumer *Consumer, err error) {
-	consumer = &Consumer{ctx: ctx, groupId: groupid, broker: broker, topic: topic, listener: listener, errorhandler: errorhandler}
+func NewConsumer(ctx context.Context, broker string, groupid string, topic string, initTopic bool, listener func(topic string, msg []byte) error, errorhandler func(err error, consumer *Consumer)) (consumer *Consumer, err error) {
+	consumer = &Consumer{ctx: ctx, groupId: groupid, broker: broker, topic: topic, listener: listener, errorhandler: errorhandler, initTopic: initTopic}
 	err = consumer.start()
 	return
 }
@@ -43,14 +43,17 @@ type Consumer struct {
 	listener     func(topic string, msg []byte) error
 	errorhandler func(err error, consumer *Consumer)
 	mux          sync.Mutex
+	initTopic    bool
 }
 
-func (this *Consumer) start() error {
+func (this *Consumer) start() (err error) {
 	log.Println("DEBUG: consume topic: \"" + this.topic + "\"")
-	err := util.InitTopic(this.broker, this.topic)
-	if err != nil {
-		log.Println("WARNING: unable to create topic", err)
-		err = nil
+	if this.initTopic {
+		err = util.InitTopic(this.broker, this.topic)
+		if err != nil {
+			log.Println("WARNING: unable to create topic", err)
+			err = nil
+		}
 	}
 	r := kafka.NewReader(kafka.ReaderConfig{
 		CommitInterval:         0, //synchronous commits
@@ -73,7 +76,7 @@ func (this *Consumer) start() error {
 				return
 			default:
 				m, err := r.FetchMessage(this.ctx)
-				if err == io.EOF || err == context.Canceled {
+				if err == io.EOF || errors.Is(err, context.Canceled) {
 					log.Println("close consumer for topic ", this.topic, err)
 					return
 				}

@@ -30,7 +30,7 @@ func Start(ctx context.Context, config config.Config, control listener.Controlle
 			log.Println("ERROR: listener.factory", topic, err)
 			return err
 		}
-		_, err = NewConsumer(ctx, config.KafkaUrl, config.GroupId, topic, func(topic string, msg []byte) error {
+		_, err = NewConsumer(ctx, config.KafkaUrl, config.GroupId, topic, config.InitTopics, func(topic string, msg []byte) error {
 			if config.Debug {
 				log.Println("DEBUG: consume", topic, string(msg))
 			}
