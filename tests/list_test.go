@@ -19,12 +19,6 @@ package tests
 import (
 	"context"
 	"encoding/json"
-	"github.com/SENERGY-Platform/permissions-v2/pkg/client"
-	model2 "github.com/SENERGY-Platform/permissions-v2/pkg/model"
-	"github.com/SENERGY-Platform/process-model-repository/lib"
-	"github.com/SENERGY-Platform/process-model-repository/lib/config"
-	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
-	"github.com/SENERGY-Platform/process-model-repository/lib/model"
 	"log"
 	"net/http"
 	"net/url"
@@ -34,6 +28,13 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/SENERGY-Platform/permissions-v2/pkg/client"
+	model2 "github.com/SENERGY-Platform/permissions-v2/pkg/model"
+	"github.com/SENERGY-Platform/process-model-repository/lib"
+	"github.com/SENERGY-Platform/process-model-repository/lib/config"
+	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
+	"github.com/SENERGY-Platform/process-model-repository/lib/model"
 )
 
 func TestList(t *testing.T) {
@@ -60,14 +61,7 @@ func TestList(t *testing.T) {
 
 	conf.MongoUrl = "mongodb://" + mongoIp + ":27017"
 
-	_, zkIp, err := Zookeeper(ctx, wg)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	zookeeperUrl := zkIp + ":2181"
-
-	conf.KafkaUrl, err = Kafka(ctx, wg, zookeeperUrl)
+	conf.KafkaUrl, err = Kafka(ctx, wg)
 	if err != nil {
 		t.Error(err)
 		return

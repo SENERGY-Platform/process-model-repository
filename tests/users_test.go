@@ -5,14 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/SENERGY-Platform/permissions-v2/pkg/client"
-	"github.com/SENERGY-Platform/process-model-repository/lib"
-	"github.com/SENERGY-Platform/process-model-repository/lib/auth"
-	"github.com/SENERGY-Platform/process-model-repository/lib/config"
-	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
-	"github.com/SENERGY-Platform/process-model-repository/lib/model"
-	"github.com/SENERGY-Platform/process-model-repository/lib/source/consumer/listener"
-	"github.com/segmentio/kafka-go"
 	"log"
 	"net/http"
 	"os"
@@ -23,6 +15,15 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/SENERGY-Platform/permissions-v2/pkg/client"
+	"github.com/SENERGY-Platform/process-model-repository/lib"
+	"github.com/SENERGY-Platform/process-model-repository/lib/auth"
+	"github.com/SENERGY-Platform/process-model-repository/lib/config"
+	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
+	"github.com/SENERGY-Platform/process-model-repository/lib/model"
+	"github.com/SENERGY-Platform/process-model-repository/lib/source/consumer/listener"
+	"github.com/segmentio/kafka-go"
 )
 
 func TestUserDelete(t *testing.T) {
@@ -50,14 +51,7 @@ func TestUserDelete(t *testing.T) {
 
 	conf.MongoUrl = "mongodb://" + mongoIp + ":27017"
 
-	_, zkIp, err := Zookeeper(ctx, wg)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	zookeeperUrl := zkIp + ":2181"
-
-	conf.KafkaUrl, err = Kafka(ctx, wg, zookeeperUrl)
+	conf.KafkaUrl, err = Kafka(ctx, wg)
 	if err != nil {
 		t.Error(err)
 		return

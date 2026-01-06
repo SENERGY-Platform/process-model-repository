@@ -19,14 +19,6 @@ package tests
 import (
 	"context"
 	"encoding/json"
-	"github.com/SENERGY-Platform/permissions-v2/pkg/client"
-	"github.com/SENERGY-Platform/process-model-repository/lib"
-	"github.com/SENERGY-Platform/process-model-repository/lib/config"
-	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
-	"github.com/SENERGY-Platform/process-model-repository/lib/database/mongo"
-	"github.com/SENERGY-Platform/process-model-repository/lib/model"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"net/http"
 	"reflect"
@@ -35,6 +27,15 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/SENERGY-Platform/permissions-v2/pkg/client"
+	"github.com/SENERGY-Platform/process-model-repository/lib"
+	"github.com/SENERGY-Platform/process-model-repository/lib/config"
+	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
+	"github.com/SENERGY-Platform/process-model-repository/lib/database/mongo"
+	"github.com/SENERGY-Platform/process-model-repository/lib/model"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func TestMongoCheckIdList(t *testing.T) {
@@ -176,14 +177,7 @@ func TestCleanup(t *testing.T) {
 
 	conf.MongoUrl = "mongodb://" + mongoIp + ":27017"
 
-	_, zkIp, err := Zookeeper(ctx, wg)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	zookeeperUrl := zkIp + ":2181"
-
-	conf.KafkaUrl, err = Kafka(ctx, wg, zookeeperUrl)
+	conf.KafkaUrl, err = Kafka(ctx, wg)
 	if err != nil {
 		t.Error(err)
 		return

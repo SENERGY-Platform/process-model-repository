@@ -5,10 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/SENERGY-Platform/process-model-repository/lib"
-	"github.com/SENERGY-Platform/process-model-repository/lib/config"
-	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
-	"github.com/SENERGY-Platform/process-model-repository/lib/model"
 	"io"
 	"log"
 	"net/http"
@@ -17,6 +13,11 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/SENERGY-Platform/process-model-repository/lib"
+	"github.com/SENERGY-Platform/process-model-repository/lib/config"
+	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
+	"github.com/SENERGY-Platform/process-model-repository/lib/model"
 )
 
 func Test(t *testing.T) {
@@ -43,14 +44,7 @@ func Test(t *testing.T) {
 
 	conf.MongoUrl = "mongodb://" + mongoIp + ":27017"
 
-	_, zkIp, err := Zookeeper(ctx, wg)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	zookeeperUrl := zkIp + ":2181"
-
-	conf.KafkaUrl, err = Kafka(ctx, wg, zookeeperUrl)
+	conf.KafkaUrl, err = Kafka(ctx, wg)
 	if err != nil {
 		t.Error(err)
 		return
