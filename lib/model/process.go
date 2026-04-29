@@ -3,9 +3,10 @@ package model
 import (
 	"errors"
 	"fmt"
-	"github.com/beevik/etree"
-	"log"
+	"log/slog"
 	"runtime/debug"
+
+	"github.com/beevik/etree"
 )
 
 type ListOptions struct {
@@ -38,7 +39,7 @@ type PublicCommand struct {
 func (process *Process) Validate() (err error) {
 	defer func() {
 		if r := recover(); r != nil && err == nil {
-			log.Printf("%s: %s", r, debug.Stack())
+			slog.Error("recovered from panic", "error", r, "stack", debug.Stack())
 			err = errors.New(fmt.Sprint("Recovered Error: ", r))
 		}
 	}()

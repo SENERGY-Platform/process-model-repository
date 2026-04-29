@@ -18,46 +18,48 @@ package api
 
 import (
 	"context"
-	"github.com/SENERGY-Platform/process-model-repository/lib/api/util"
-	"github.com/SENERGY-Platform/process-model-repository/lib/config"
-	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
-	"github.com/SENERGY-Platform/service-commons/pkg/accesslog"
-	"github.com/julienschmidt/httprouter"
+	"errors"
 	"log"
 	"net/http"
 	"reflect"
 	"runtime"
 	"time"
+
+	"github.com/SENERGY-Platform/process-model-repository/lib/api/util"
+	"github.com/SENERGY-Platform/process-model-repository/lib/config"
+	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
+	"github.com/SENERGY-Platform/service-commons/pkg/accesslog"
+	"github.com/julienschmidt/httprouter"
 )
 
 var endpoints = []func(config config.Config, control Controller, router *httprouter.Router){}
 
 func Start(ctx context.Context, config config.Config, control Controller) {
-	log.Println("start api")
+	config.GetLogger().Info("start api")
 	router := httprouter.New()
 	for _, e := range endpoints {
-		log.Println("add endpoints: " + runtime.FuncForPC(reflect.ValueOf(e).Pointer()).Name())
+		config.GetLogger().Info("add endpoints: " + runtime.FuncForPC(reflect.ValueOf(e).Pointer()).Name())
 		e(config, control, router)
 	}
-	log.Println("add logging and cors")
+	config.GetLogger().Info("add logging and cors")
 	corsHandler := util.NewCors(router)
 	logger := accesslog.New(corsHandler)
 	server := &http.Server{Addr: ":" + config.ServerPort, Handler: logger, WriteTimeout: 10 * time.Second, ReadTimeout: 2 * time.Second, ReadHeaderTimeout: 2 * time.Second}
 	go func() {
-		log.Println("Listening on ", server.Addr)
+		config.GetLogger().Info("listen on " + server.Addr)
 		if err := server.ListenAndServe(); err != nil {
-			if err != http.ErrServerClosed {
-				log.Println("ERROR: api server error", err)
+			if !errors.Is(err, http.ErrServerClosed) {
+				config.GetLogger().Error("api server error", "error", err)
 				log.Fatal(err)
 			} else {
-				log.Println("closing api server")
+				config.GetLogger().Info("api server closed")
 			}
 		}
 	}()
 	contextwg.Add(ctx, 1)
 	go func() {
 		<-ctx.Done()
-		log.Println("DEBUG: api shutdown", server.Shutdown(context.Background()))
+		config.GetLogger().Info("api shutdown", "result", server.Shutdown(context.Background()))
 		contextwg.Done(ctx)
 	}()
 	return

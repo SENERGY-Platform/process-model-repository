@@ -19,13 +19,15 @@ package consumer
 import (
 	"context"
 	"errors"
+	"io"
+	"log"
+	"log/slog"
+	"sync"
+	"time"
+
 	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
 	"github.com/SENERGY-Platform/process-model-repository/lib/source/util"
 	"github.com/segmentio/kafka-go"
-	"io"
-	"log"
-	"sync"
-	"time"
 )
 
 func NewConsumer(ctx context.Context, broker string, groupid string, topic string, initTopic bool, listener func(topic string, msg []byte) error, errorhandler func(err error, consumer *Consumer)) (consumer *Consumer, err error) {
@@ -47,11 +49,11 @@ type Consumer struct {
 }
 
 func (this *Consumer) start() (err error) {
-	log.Println("DEBUG: consume topic: \"" + this.topic + "\"")
+	slog.Debug("consume topic", "topic", this.topic, "groupid", this.groupId)
 	if this.initTopic {
 		err = util.InitTopic(this.broker, this.topic)
 		if err != nil {
-			log.Println("WARNING: unable to create topic", err)
+			slog.Warn("unable to create topic", "topic", this.topic, "error", err)
 			err = nil
 		}
 	}
@@ -69,19 +71,21 @@ func (this *Consumer) start() (err error) {
 	contextwg.Add(this.ctx, 1)
 	go func() {
 		defer contextwg.Done(this.ctx)
-		defer func() { log.Println("close kafka reader:", this.topic, r.Close()) }()
+		defer func() {
+			slog.Debug("close kafka reader", "topic", this.topic, "result", r.Close())
+		}()
 		for {
 			select {
 			case <-this.ctx.Done():
 				return
 			default:
 				m, err := r.FetchMessage(this.ctx)
-				if err == io.EOF || errors.Is(err, context.Canceled) {
-					log.Println("close consumer for topic ", this.topic, err)
+				if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) {
+					slog.Debug("close consumer for topic", "topic", this.topic, "error", err)
 					return
 				}
 				if err != nil {
-					log.Println("ERROR: while consuming topic ", this.topic, err)
+					slog.Error("error while consuming topic", "topic", this.topic, "error", err)
 					this.errorhandler(err, this)
 					return
 				}
@@ -93,12 +97,12 @@ func (this *Consumer) start() (err error) {
 				}, 10*time.Minute)
 
 				if err != nil {
-					log.Println("ERROR: unable to handle message (no commit)", err)
+					slog.Error("unable to handle message", "topic", this.topic, "error", err)
 					this.errorhandler(err, this)
 				} else {
 					err = r.CommitMessages(this.ctx, m)
 					if err != nil {
-						log.Println("ERROR: unable to commit message consumption", err)
+						slog.Error("unable to commit message consumption", "topic", this.topic, "error", err)
 					}
 				}
 			}
@@ -113,10 +117,10 @@ func retry(f func() error, waitProvider func(n int64) time.Duration, timeout tim
 	for i := int64(1); err != nil && time.Since(start) < timeout; i++ {
 		err = f()
 		if err != nil {
-			log.Println("ERROR: kafka listener error:", err)
+			slog.Error("kafka listener error", "error", err)
 			wait := waitProvider(i)
 			if time.Since(start)+wait < timeout {
-				log.Println("ERROR: retry after:", wait.String())
+				slog.Debug("retry after", "wait", wait.String())
 				time.Sleep(wait)
 			} else {
 				return err

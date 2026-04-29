@@ -1,6 +1,6 @@
 {
     "server_port": "8080",
-    "log_level": "CALL",
+    "log_level": "info",
     "process_topic": "processmodel",
     "users_topic": "user",
     "permissions_v2_url": "http://permv2.permissions:8080",

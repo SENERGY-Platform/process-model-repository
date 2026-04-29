@@ -19,6 +19,9 @@ package mongo
 import (
 	"context"
 	"errors"
+	"reflect"
+	"time"
+
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/contextwg"
 	"github.com/google/uuid"
@@ -26,9 +29,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/bsoncodec"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"log"
-	"reflect"
-	"time"
 )
 
 type Mongo struct {
@@ -56,7 +56,7 @@ func New(ctx context.Context, conf config.Config) (*Mongo, error) {
 	go func() {
 		<-ctx.Done()
 		disconnectTimeout, _ := getTimeoutContext(context.Background())
-		log.Println("disconnect from mongodb:", client.Disconnect(disconnectTimeout))
+		conf.GetLogger().Info("disconnect from mongodb", "result", client.Disconnect(disconnectTimeout))
 		contextwg.Done(ctx)
 	}()
 	return db, nil
@@ -94,7 +94,7 @@ func (this *Mongo) Transaction(ctx context.Context) (resultCtx context.Context, 
 			err = session.AbortTransaction(resultCtx)
 		}
 		if err != nil {
-			log.Println("ERROR: unable to finish mongo transaction", err)
+			this.config.GetLogger().Error("unable to finish mongo transaction", "error", err)
 		}
 		return err
 	}, nil
@@ -131,7 +131,7 @@ func (this *Mongo) ensureCompoundIndex(collection *mongo.Collection, indexname s
 }
 
 func (this *Mongo) Disconnect() {
-	log.Println(this.client.Disconnect(context.Background()))
+	this.config.GetLogger().Info("disconnected from mongodb", "result", this.client.Disconnect(context.Background()))
 }
 
 func getBsonFieldName(obj interface{}, fieldName string) (bsonName string, err error) {

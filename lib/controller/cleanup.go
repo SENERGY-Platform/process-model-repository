@@ -18,9 +18,10 @@ package controller
 
 import (
 	"context"
-	"github.com/SENERGY-Platform/permissions-v2/pkg/client"
-	"log"
+	"fmt"
 	"time"
+
+	"github.com/SENERGY-Platform/permissions-v2/pkg/client"
 )
 
 func (this *Controller) StartCleanupLoop(ctx context.Context, interval time.Duration) {
@@ -33,9 +34,9 @@ func (this *Controller) StartCleanupLoop(ctx context.Context, interval time.Dura
 				start := time.Now()
 				permissionsRemoved, processesRemoved, err := this.Cleanup()
 				if err != nil {
-					log.Printf("ERROR: while cleaning up process permissions: %v", err)
+					this.config.GetLogger().Error("error while cleaning up process permissions", "error", err)
 				} else {
-					log.Printf("INFO: cleaned up process permissions in %v, permissions removed: %v, processes removed: %v", time.Now().Sub(start), permissionsRemoved, processesRemoved)
+					this.config.GetLogger().Info(fmt.Sprintf("cleaned up process permissions in %v, permissions removed: %v, processes removed: %v", time.Now().Sub(start), permissionsRemoved, processesRemoved))
 				}
 			case <-ctx.Done():
 				return

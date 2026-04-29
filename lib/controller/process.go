@@ -20,15 +20,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/http"
+	"runtime/debug"
+	"time"
+
 	"github.com/SENERGY-Platform/permissions-v2/pkg/client"
 	"github.com/SENERGY-Platform/process-model-repository/lib/auth"
 	"github.com/SENERGY-Platform/process-model-repository/lib/model"
 	"github.com/beevik/etree"
 	"github.com/google/uuid"
-	"log"
-	"net/http"
-	"runtime/debug"
-	"time"
 )
 
 /////////////////////////
@@ -209,7 +210,7 @@ func (this *Controller) deleteProcess(id string) (error, int) {
 func (this *Controller) GetProcessModelName(bpmn string) (name string, err error) {
 	defer func() {
 		if r := recover(); r != nil && err == nil {
-			log.Printf("%s: %s", r, debug.Stack())
+			slog.Error("recovered from panic", "error", r, "stack", debug.Stack())
 			err = errors.New(fmt.Sprint("Recovered Error: ", r))
 		}
 	}()

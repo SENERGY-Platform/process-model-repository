@@ -3,7 +3,7 @@ package contextwg
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"sync"
 )
 
@@ -40,11 +40,11 @@ func AddWithErr(ctx context.Context, delta int) (err error) {
 
 func Add(ctx context.Context, delta int) {
 	err := AddWithErr(ctx, delta)
-	if err == NoWgFound {
+	if errors.Is(err, NoWgFound) {
 		return
 	}
 	if err != nil {
-		log.Println("WARNING:", err)
+		slog.Warn("unable to add to waitgroup", "error", err)
 	}
 }
 
@@ -59,11 +59,11 @@ func DoneWithErr(ctx context.Context) (err error) {
 
 func Done(ctx context.Context) {
 	err := DoneWithErr(ctx)
-	if err == NoWgFound {
+	if errors.Is(err, NoWgFound) {
 		return
 	}
 	if err != nil {
-		log.Println("WARNING:", err)
+		slog.Warn("unable to signal done to waitgroup", "error", err)
 	}
 }
 
@@ -78,10 +78,10 @@ func WaitWithErr(ctx context.Context) (err error) {
 
 func Wait(ctx context.Context) {
 	err := WaitWithErr(ctx)
-	if err == NoWgFound {
+	if errors.Is(err, NoWgFound) {
 		return
 	}
 	if err != nil {
-		log.Println("WARNING:", err)
+		slog.Warn("unable to wait for waitgroup", "error", err)
 	}
 }

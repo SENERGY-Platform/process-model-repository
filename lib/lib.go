@@ -18,13 +18,13 @@ package lib
 
 import (
 	"context"
+	"time"
+
 	"github.com/SENERGY-Platform/process-model-repository/lib/api"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/controller"
 	"github.com/SENERGY-Platform/process-model-repository/lib/database"
 	"github.com/SENERGY-Platform/process-model-repository/lib/source/consumer"
-	"log"
-	"time"
 )
 
 /*
@@ -54,26 +54,26 @@ func StartGetInternals(basectx context.Context, conf config.Config) (db database
 	}()
 	db, err = database.New(ctx, conf)
 	if err != nil {
-		log.Println("ERROR: unable to connect to database", err)
+		conf.GetLogger().Error("unable to connect to database", "error", err)
 		return db, ctrl, err
 	}
 
 	ctrl, err = controller.New(conf, db)
 	if err != nil {
-		log.Println("ERROR: unable to start control", err)
+		conf.GetLogger().Error("unable to start control", "error", err)
 		return db, ctrl, err
 	}
 
 	cleanupInterval, err := time.ParseDuration(conf.CleanupInterval)
 	if err != nil {
-		log.Println("ERROR: unable to parse cleanup interval", err)
+		conf.GetLogger().Error("unable to parse cleanup interval", "error", err)
 		return db, ctrl, err
 	}
 	ctrl.StartCleanupLoop(ctx, cleanupInterval)
 
 	err = consumer.Start(ctx, conf, ctrl)
 	if err != nil {
-		log.Println("ERROR: unable to start source", err)
+		conf.GetLogger().Error("unable to start source", "error", err)
 		return db, ctrl, err
 	}
 

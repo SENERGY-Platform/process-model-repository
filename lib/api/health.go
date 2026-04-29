@@ -2,12 +2,13 @@ package api
 
 import (
 	"bytes"
-	"github.com/SENERGY-Platform/process-model-repository/lib/config"
-	"github.com/julienschmidt/httprouter"
 	"io"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/SENERGY-Platform/process-model-repository/lib/config"
+	"github.com/julienschmidt/httprouter"
 )
 
 func init() {
@@ -18,8 +19,8 @@ const connectivityTestToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzd
 
 func HealthEndpoints(config config.Config, control Controller, router *httprouter.Router) {
 	router.POST("/health", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
-		msg, err := io.ReadAll(request.Body)
-		log.Println("INFO: /health", err, string(msg))
+		msg, _ := io.ReadAll(request.Body)
+		config.GetLogger().Info("health check", "message", string(msg))
 		writer.WriteHeader(http.StatusOK)
 	})
 
@@ -27,7 +28,7 @@ func HealthEndpoints(config config.Config, control Controller, router *httproute
 		go func() {
 			ticker := time.NewTicker(1 * time.Minute)
 			for t := range ticker.C {
-				log.Println("INFO: connectivity test: " + t.String())
+				config.GetLogger().Info("connectivity test", "time", t.String())
 				client := http.Client{
 					Timeout: 5 * time.Second,
 				}
@@ -39,12 +40,14 @@ func HealthEndpoints(config config.Config, control Controller, router *httproute
 				)
 
 				if err != nil {
+					config.GetLogger().Error("FATAL: connection test unable to build request", "error", err)
 					log.Fatal("FATAL: connection test unable to build request:", err)
 				}
 				req.Header.Set("Authorization", connectivityTestToken)
 
 				resp, err := client.Do(req)
 				if err != nil {
+					config.GetLogger().Error("FATAL: connection test", "error", err)
 					log.Fatal("FATAL: connection test:", err)
 				}
 				io.ReadAll(resp.Body)
