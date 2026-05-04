@@ -28,7 +28,7 @@ func HealthEndpoints(config config.Config, control Controller, router *httproute
 		go func() {
 			ticker := time.NewTicker(1 * time.Minute)
 			for t := range ticker.C {
-				config.GetLogger().Info("connectivity test", "time", t.String())
+				config.GetLogger().Info("connectivity test")
 				client := http.Client{
 					Timeout: 5 * time.Second,
 				}
