@@ -19,6 +19,7 @@ package mongo
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -38,9 +39,16 @@ type Mongo struct {
 
 var CreateCollections = []func(db *Mongo) error{}
 
+var (
+	ErrEmptyDatabase   = errors.New("mongo database name must not be empty")
+	ErrMissingPassword = errors.New("mongo password must not be empty when a mongo user is set")
+)
+
 func New(ctx context.Context, conf config.Config) (*Mongo, error) {
-	timeout, _ := getTimeoutContext(ctx)
-	client, err := mongo.Connect(timeout, options.Client().ApplyURI(conf.MongoUrl))
+	if err := validateConfig(conf); err != nil {
+		return nil, err
+	}
+	client, err := connect(ctx, clientOptions(conf), conf.MongoDatabase, 10*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -60,6 +68,52 @@ func New(ctx context.Context, conf config.Config) (*Mongo, error) {
 		contextwg.Done(ctx)
 	}()
 	return db, nil
+}
+
+func validateConfig(conf config.Config) error {
+	if conf.MongoDatabase == "" {
+		return ErrEmptyDatabase
+	}
+	if conf.MongoUser != "" && conf.MongoPassword == "" {
+		return ErrMissingPassword
+	}
+	return nil
+}
+
+// clientOptions applies the credentials after the URI, so they replace any user, password,
+// authSource and authMechanism given in MongoUrl.
+func clientOptions(conf config.Config) *options.ClientOptions {
+	opts := options.Client().ApplyURI(conf.MongoUrl)
+	if conf.MongoUser != "" {
+		opts.SetAuth(options.Credential{
+			Username:   conf.MongoUser,
+			Password:   conf.MongoPassword,
+			AuthSource: conf.MongoAuthSource,
+		})
+	}
+	return opts
+}
+
+// connect runs an authorized listCollections on database because Connect is lazy and ping
+// needs no authentication; an unreachable server or wrong or missing credentials then fail
+// here instead of at the first query. On failure the client is disconnected.
+func connect(ctx context.Context, opts *options.ClientOptions, database string, timeout time.Duration) (*mongo.Client, error) {
+	connectCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	client, err := mongo.Connect(connectCtx, opts)
+	if err != nil {
+		return nil, err
+	}
+	checkCtx, checkCancel := context.WithTimeout(ctx, timeout)
+	defer checkCancel()
+	listOpts := options.ListCollections().SetNameOnly(true).SetAuthorizedCollections(true)
+	if _, err = client.Database(database).ListCollectionNames(checkCtx, bson.D{}, listOpts); err != nil {
+		disconnectTimeout, disconnectCancel := getTimeoutContext(context.Background())
+		defer disconnectCancel()
+		_ = client.Disconnect(disconnectTimeout)
+		return nil, fmt.Errorf("mongo startup check failed: %w", err)
+	}
+	return client, nil
 }
 
 func (this *Mongo) CreateId() string {

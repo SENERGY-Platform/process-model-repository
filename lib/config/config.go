@@ -38,9 +38,12 @@ type Config struct {
 	ProcessTopic           string `json:"process_topic"`
 	UsersTopic             string `json:"users_topic"`
 	PermissionsV2Url       string `json:"permissions_v2_url"`
-	MongoUrl               string `json:"mongo_url"`
-	MongoReplSet           bool   `json:"mongo_repl_set"` //set true if mongodb is configured as replication set or mongos and is able to handle transactions
-	MongoTable             string `json:"mongo_table"`
+	MongoUrl               string `json:"mongo_url"`                      //full connection string incl. scheme; must not contain credentials
+	MongoUser              string `json:"mongo_user"`                     //empty: no authentication
+	MongoPassword          string `json:"mongo_password" config:"secret"` //required when MongoUser is set
+	MongoAuthSource        string `json:"mongo_auth_source"`              //database the user is defined in
+	MongoDatabase          string `json:"mongo_database"`                 //must not be empty
+	MongoReplSet           bool   `json:"mongo_repl_set"`                 //set true if mongodb is configured as replication set or mongos and is able to handle transactions
 	MongoProcessCollection string `json:"mongo_process_collection"`
 	Debug                  bool   `json:"debug"`
 	ConnectivityTest       bool   `json:"connectivity_test"`
@@ -61,6 +64,11 @@ func Load(location string) (config Config, err error) {
 		log.Println("error on config load: ", err)
 		return config, err
 	}
+	config = Config{
+		MongoUrl:        "mongodb://localhost:27017",
+		MongoAuthSource: "admin",
+		MongoDatabase:   "process_repository",
+	}
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&config)
 	if err != nil {
@@ -69,6 +77,36 @@ func Load(location string) (config Config, err error) {
 	}
 	handleEnvironmentVars(&config)
 	return config, nil
+}
+
+func isSecret(field reflect.StructField) bool {
+	return strings.Contains(field.Tag.Get("config"), "secret")
+}
+
+// plainConfig has none of Config's methods, so formatting it does not recurse.
+type plainConfig Config
+
+// masked returns a copy in which every non-empty field tagged config:"secret" is replaced.
+func (c Config) masked() plainConfig {
+	v := reflect.ValueOf(&c).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		if isSecret(v.Type().Field(i)) && v.Field(i).Kind() == reflect.String && v.Field(i).String() != "" {
+			v.Field(i).SetString("***")
+		}
+	}
+	return plainConfig(c)
+}
+
+func (c Config) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.masked())
+}
+
+func (c Config) String() string {
+	return fmt.Sprintf("%+v", c.masked())
+}
+
+func (c Config) GoString() string {
+	return fmt.Sprintf("%#v", c.masked())
 }
 
 var camel = regexp.MustCompile("(^[^A-Z]*|[A-Z]*)([A-Z][^A-Z]+|$)")
@@ -95,7 +133,9 @@ func handleEnvironmentVars(config *Config) {
 		envName := fieldNameToEnvName(fieldName)
 		envValue := os.Getenv(envName)
 		if envValue != "" {
-			fmt.Println("use environment variable: ", envName, " = ", envValue)
+			if !isSecret(configType.Field(index)) {
+				fmt.Println("use environment variable: ", envName, " = ", envValue)
+			}
 			if configValue.FieldByName(fieldName).Kind() == reflect.Int64 {
 				i, _ := strconv.ParseInt(envValue, 10, 64)
 				configValue.FieldByName(fieldName).SetInt(i)

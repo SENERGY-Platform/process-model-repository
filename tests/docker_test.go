@@ -27,10 +27,10 @@ func MongoTestServer(ctx context.Context, wg *sync.WaitGroup) (hostport string, 
 	log.Println("start mongo")
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "mongo:4.1.11",
+			Image:        "mongo:8.0",
 			ExposedPorts: []string{"27017/tcp"},
 			WaitingFor: wait.ForAll(
-				wait.ForLog("waiting for connections"),
+				wait.ForLog("Waiting for connections"),
 				wait.ForListeningPort("27017/tcp"),
 			),
 			Tmpfs: map[string]string{"/data/db": "rw"},

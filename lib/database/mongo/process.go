@@ -47,7 +47,7 @@ func init() {
 	}
 
 	CreateCollections = append(CreateCollections, func(db *Mongo) error {
-		collection := db.client.Database(db.config.MongoTable).Collection(db.config.MongoProcessCollection)
+		collection := db.client.Database(db.config.MongoDatabase).Collection(db.config.MongoProcessCollection)
 		//err = db.ensureIndex(collection, "processidindex", processIdKey, true, true)
 		if err != nil {
 			return err
@@ -61,7 +61,7 @@ func init() {
 }
 
 func (this *Mongo) ProcessCollection() *mongo.Collection {
-	return this.client.Database(this.config.MongoTable).Collection(this.config.MongoProcessCollection)
+	return this.client.Database(this.config.MongoDatabase).Collection(this.config.MongoProcessCollection)
 }
 
 func (this *Mongo) ReadProcess(ctx context.Context, id string) (process model.Process, exists bool, err error) {
