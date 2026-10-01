@@ -184,58 +184,34 @@ func TestList(t *testing.T) {
 		}
 	}
 
-	t.Run("list all for admin", func(t *testing.T) {
-		testList(client.InternalAdminToken, "/v2/processes", []model.Process{p1, p3, p2, p4})
-	})
+	t.Run("list all for admin", testList(client.InternalAdminToken, "/v2/processes", []model.Process{p1, p3, p2, p4}))
 
-	t.Run("list for owner", func(t *testing.T) {
-		testList(userjwt1, "/v2/processes", []model.Process{p1, p3, p2, p4})
-	})
+	t.Run("list for owner", testList(userjwt1, "/v2/processes", []model.Process{p1, p3, p2, p4}))
 
-	t.Run("list for user2", func(t *testing.T) {
-		testList(userjwt2, "/v2/processes", []model.Process{p2})
-	})
+	t.Run("list for user2", testList(userjwt2, "/v2/processes", []model.Process{p2}))
 
-	t.Run("sort", func(t *testing.T) {
-		testList(userjwt1, "/v2/processes?sort=name.desc", []model.Process{p4, p2, p3, p1})
-	})
+	t.Run("sort", testList(userjwt1, "/v2/processes?sort=name.desc", []model.Process{p4, p2, p3, p1}))
 
-	t.Run("limit offset", func(t *testing.T) {
-		testList(userjwt1, "/v2/processes?limit=2&offset=1", []model.Process{p3, p2})
-	})
+	t.Run("limit offset", testList(userjwt1, "/v2/processes?limit=2&offset=1", []model.Process{p3, p2}))
 
 	t.Run("ids", func(t *testing.T) {
 		ids := strings.Join([]string{p3.Id, p4.Id}, ",")
-		testList(userjwt1, "/v2/processes?ids="+url.QueryEscape(ids), []model.Process{p3, p4})
+		testList(userjwt1, "/v2/processes?ids="+url.QueryEscape(ids), []model.Process{p3, p4})(t)
 	})
 
-	t.Run("search a", func(t *testing.T) {
-		testList(userjwt1, "/v2/processes?search=a", []model.Process{p1, p3})
-	})
+	t.Run("search a", testList(userjwt1, "/v2/processes?search=a", []model.Process{p1, p3}))
 
-	t.Run("search b", func(t *testing.T) {
-		testList(userjwt1, "/v2/processes?search=b", []model.Process{p2, p4})
-	})
+	t.Run("search b", testList(userjwt1, "/v2/processes?search=b", []model.Process{p2, p4}))
 
-	t.Run("search x", func(t *testing.T) {
-		testList(userjwt1, "/v2/processes?search=x", []model.Process{p1, p4})
-	})
+	t.Run("search x", testList(userjwt1, "/v2/processes?search=x", []model.Process{p1, p4}))
 
-	t.Run("search y", func(t *testing.T) {
-		testList(userjwt1, "/v2/processes?search=y", []model.Process{p3, p2})
-	})
+	t.Run("search y", testList(userjwt1, "/v2/processes?search=y", []model.Process{p3, p2}))
 
-	t.Run("search 1", func(t *testing.T) {
-		testList(userjwt1, "/v2/processes?search=1", []model.Process{p1, p2})
-	})
+	t.Run("search 1", testList(userjwt1, "/v2/processes?search=1", []model.Process{p1, p2}))
 
-	t.Run("search 2", func(t *testing.T) {
-		testList(userjwt1, "/v2/processes?search=2", []model.Process{p3, p4})
-	})
+	t.Run("search 2", testList(userjwt1, "/v2/processes?search=2", []model.Process{p3, p4}))
 
-	t.Run("search a 1", func(t *testing.T) {
-		testList(userjwt1, "/v2/processes?search="+url.QueryEscape("a 1"), []model.Process{p1})
-	})
+	t.Run("search a 1", testList(userjwt1, "/v2/processes?search="+url.QueryEscape("a 1"), []model.Process{p1}))
 
 	var p5 model.Process
 	err = PostJSON(userjwt2, "http://localhost:"+conf.ServerPort+"/processes", model.Process{

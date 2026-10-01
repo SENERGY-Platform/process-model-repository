@@ -289,9 +289,7 @@ func TestCleanup(t *testing.T) {
 		}
 	}
 
-	t.Run("list before cleanup", func(t *testing.T) {
-		testList(userjwt1, "/v2/processes", []model.Process{p1, p3, p2, p4})
-	})
+	t.Run("list before cleanup", testList(userjwt1, "/v2/processes", []model.Process{p1, p3, p2, p4}))
 
 	time.Sleep(time.Second)
 
@@ -324,7 +322,5 @@ func TestCleanup(t *testing.T) {
 		}
 	})
 
-	t.Run("list after cleanup", func(t *testing.T) {
-		testList(userjwt1, "/v2/processes", []model.Process{p1, p4})
-	})
+	t.Run("list after cleanup", testList(userjwt1, "/v2/processes", []model.Process{p1, p4}))
 }
