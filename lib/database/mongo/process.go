@@ -137,6 +137,16 @@ func (this *Mongo) ListProcesses(ctx context.Context, listOptions model.ListOpti
 			bson.M{"description": bson.M{"$regex": escapedSearch, "$options": "i"}},
 		}
 	}
+	ownerFilter := bson.M{}
+	if listOptions.Owner != "" {
+		ownerFilter["$eq"] = listOptions.Owner
+	}
+	if listOptions.NotOwner != "" {
+		ownerFilter["$ne"] = listOptions.NotOwner
+	}
+	if len(ownerFilter) > 0 {
+		filter["owner"] = ownerFilter
+	}
 
 	cursor, err := this.ProcessCollection().Find(ctx, filter, opt)
 	if err != nil {

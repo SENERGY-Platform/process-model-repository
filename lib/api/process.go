@@ -69,6 +69,8 @@ func ProcessEndpoints(config config.Config, control Controller, router *httprout
 	//	sort		name.asc
 	//	ids			comma seperated list of process-model ids
 	//	p			r|w|x|a default r
+	//	owner		only process-models with this owner
+	//	not-owner	only process-models without this owner
 	//response:
 	//	[]model.Process	in body
 	//	total in X-Total-Count response header
@@ -111,6 +113,8 @@ func ProcessEndpoints(config config.Config, control Controller, router *httprout
 		}
 
 		listOptions.Search = request.URL.Query().Get("search")
+		listOptions.Owner = request.URL.Query().Get("owner")
+		listOptions.NotOwner = request.URL.Query().Get("not-owner")
 		listOptions.SortBy = request.URL.Query().Get("sort")
 		if listOptions.SortBy == "" {
 			listOptions.SortBy = "name.asc"

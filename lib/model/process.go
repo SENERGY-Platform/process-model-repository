@@ -16,6 +16,8 @@ type ListOptions struct {
 	Offset     int64      //default 0, will be ignored if 'ids' is set (Ids != nil)
 	SortBy     string     //default name.asc
 	Permission AuthAction //defaults to read
+	Owner      string     //filter; ignored if empty
+	NotOwner   string     //filter; ignored if empty
 }
 
 type Process struct {

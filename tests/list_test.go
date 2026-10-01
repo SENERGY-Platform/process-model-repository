@@ -237,4 +237,68 @@ func TestList(t *testing.T) {
 		testList(userjwt1, "/v2/processes?search="+url.QueryEscape("a 1"), []model.Process{p1})
 	})
 
+	var p5 model.Process
+	err = PostJSON(userjwt2, "http://localhost:"+conf.ServerPort+"/processes", model.Process{
+		Name:        "c 1",
+		Description: "x",
+		BpmnXml:     createTestXmlString("p5"),
+		SvgXml:      "svg5",
+	}, &p5)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	time.Sleep(5 * time.Second)
+
+	_, err, _ = client.New(conf.PermissionsV2Url).SetPermission(client.InternalAdminToken, conf.ProcessTopic, p5.Id, client.ResourcePermissions{
+		UserPermissions: map[string]model2.PermissionsMap{
+			userid1: {Read: true, Write: false, Execute: true, Administrate: false},
+			userid2: {Read: true, Write: true, Execute: true, Administrate: true},
+		},
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	testTotal := func(token string, path string, expected int64) func(t *testing.T) {
+		return func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, "http://localhost:"+conf.ServerPort+path, nil)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			req.Header.Set("Authorization", token)
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				t.Error(resp.StatusCode)
+				return
+			}
+			actual, err := strconv.ParseInt(resp.Header.Get("X-Total-Count"), 10, 64)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			if actual != expected {
+				t.Errorf("X-Total-Count: %v, expected %v", actual, expected)
+			}
+		}
+	}
+
+	t.Run("owner", testList(userjwt1, "/v2/processes?owner="+userid1, []model.Process{p1, p3, p2, p4}))
+	t.Run("not-owner", testList(userjwt1, "/v2/processes?not-owner="+userid1, []model.Process{p5}))
+	t.Run("owner for user2", testList(userjwt2, "/v2/processes?owner="+userid2, []model.Process{p5}))
+	t.Run("not-owner for user2", testList(userjwt2, "/v2/processes?not-owner="+userid2, []model.Process{p2}))
+	t.Run("owner search", testList(userjwt1, "/v2/processes?search=1&owner="+userid1, []model.Process{p1, p2}))
+	t.Run("not-owner search", testList(userjwt1, "/v2/processes?search=a&not-owner="+userid1, nil))
+	t.Run("owner limit offset", testList(userjwt1, "/v2/processes?limit=2&offset=3&owner="+userid1, []model.Process{p4}))
+	t.Run("owner total", testTotal(userjwt1, "/v2/processes?limit=2&owner="+userid1, 4))
+	t.Run("not-owner total", testTotal(userjwt1, "/v2/processes?limit=2&not-owner="+userid1, 1))
+	t.Run("not-owner for admin", testList(client.InternalAdminToken, "/v2/processes?not-owner="+userid1, []model.Process{p5}))
 }
