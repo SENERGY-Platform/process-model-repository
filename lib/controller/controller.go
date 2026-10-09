@@ -17,16 +17,31 @@
 package controller
 
 import (
+	"context"
+	"errors"
+
 	"github.com/SENERGY-Platform/permissions-v2/pkg/client"
 	"github.com/SENERGY-Platform/process-model-repository/lib/config"
 	"github.com/SENERGY-Platform/process-model-repository/lib/database"
+	"github.com/SENERGY-Platform/process-model-repository/lib/model"
+	"github.com/SENERGY-Platform/process-model-repository/lib/smartservices"
 )
 
+// UsageSource asks which smart services use a process model, with the caller's token.
+type UsageSource interface {
+	Usage(ctx context.Context, processModelId string, auth string) (model.ResourceUsage, error)
+}
+
 func New(config config.Config, db database.Database) (ctrl *Controller, err error) {
+	if config.SmartServiceRepositoryUrl == "" {
+		// Without it every delete would end in a 502; better to fail at startup.
+		return nil, errors.New("no smart-service-repository address configured")
+	}
 	ctrl = &Controller{
 		db:     db,
 		config: config,
 		perm:   client.New(config.PermissionsV2Url),
+		usage:  smartservices.New(config.SmartServiceRepositoryUrl),
 	}
 	_, err, _ = ctrl.perm.SetTopic(client.InternalAdminToken, client.Topic{
 		Id:                  config.ProcessTopic,
@@ -46,4 +61,5 @@ type Controller struct {
 	db     database.Database
 	config config.Config
 	perm   client.Client
+	usage  UsageSource
 }

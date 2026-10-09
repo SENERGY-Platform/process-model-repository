@@ -62,6 +62,41 @@ func TestLoad_RepoConfigMongoDefaults(t *testing.T) {
 	}
 }
 
+const inClusterSmartServiceRepository = "http://api.smart-service-repository:8080"
+
+func TestLoad_SmartServiceRepositoryUrl(t *testing.T) {
+	tests := []struct {
+		name string
+		file string
+		env  string
+		want string
+	}{
+		{"repo config file", "", "", inClusterSmartServiceRepository},
+		{"default when the file omits it", `{}`, "", inClusterSmartServiceRepository},
+		{"file", `{"smart_service_repository_url": "http://file:1"}`, "", "http://file:1"},
+		{"environment wins over the file", `{"smart_service_repository_url": "http://file:1"}`, "http://env:2", "http://env:2"},
+		// The file may carry an empty value; the controller refuses it at startup.
+		{"empty in the file stays empty", `{"smart_service_repository_url": ""}`, "", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clearMongoEnv(t)
+			t.Setenv("SMART_SERVICE_REPOSITORY_URL", tc.env)
+			path := "../../config.json"
+			if tc.file != "" {
+				path = writeConfig(t, tc.file)
+			}
+			cfg, err := Load(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.SmartServiceRepositoryUrl != tc.want {
+				t.Errorf("SmartServiceRepositoryUrl = %q, want %q", cfg.SmartServiceRepositoryUrl, tc.want)
+			}
+		})
+	}
+}
+
 func TestLoad_MongoDefaultsWhenFileOmitsThem(t *testing.T) {
 	clearMongoEnv(t)
 	cfg, err := Load(writeConfig(t, `{}`))

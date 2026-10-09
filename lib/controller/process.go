@@ -183,7 +183,14 @@ func (this *Controller) UpdateProcessPublic(token auth.Token, id string, publicC
 	return process, nil, http.StatusOK
 }
 
-func (this *Controller) DeleteProcess(token auth.Token, id string) (error, int) {
+// DeleteProcess refuses with *model.InUseError (409) while smart services use the process model.
+// Force deletes anyway and is for administrators only. When the smart-service-repository cannot
+// answer, nothing is deleted (502), also with force. Check and delete are not atomic: a release
+// created in between is not seen.
+func (this *Controller) DeleteProcess(token auth.Token, id string, force bool) (error, int) {
+	if force && !token.IsAdmin() {
+		return errors.New("force needs the admin role"), http.StatusForbidden
+	}
 	access, err := this.checkBool(token, this.config.ProcessTopic, id, model.ADMINISTRATE)
 	if err != nil {
 		return err, http.StatusInternalServerError
@@ -191,7 +198,27 @@ func (this *Controller) DeleteProcess(token auth.Token, id string) (error, int) 
 	if !access {
 		return errors.New("access denied"), http.StatusForbidden
 	}
-	return this.deleteProcess(id)
+	ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT)
+	defer cancel()
+	usage, err := this.usage.Usage(ctx, id, token.Jwt())
+	if err != nil {
+		// The detail may hold internals, so only the static sentinel reaches the client.
+		slog.Warn("could not ask the smart-service-repository for the usage of a process model", "process_model_id", id, "error", err)
+		return model.ErrUsageUnavailable, http.StatusBadGateway
+	}
+	used := usage.Releases > 0
+	if used && !force {
+		return &model.InUseError{Usage: usage}, http.StatusConflict
+	}
+	err, code := this.deleteProcess(id)
+	if err != nil {
+		return err, code
+	}
+	if used {
+		slog.Warn("deleted a process model that smart services still use",
+			"process_model_id", id, "user_id", token.GetUserId(), "releases", usage.Releases, "instances", usage.Instances)
+	}
+	return nil, http.StatusOK
 }
 
 func (this *Controller) deleteProcess(id string) (error, int) {

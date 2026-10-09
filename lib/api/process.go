@@ -18,6 +18,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -228,15 +229,40 @@ func ProcessEndpoints(config config.Config, control Controller, router *httprout
 		}
 	})
 
+	//query parameters:
+	//	force	true|false, default false; administrators only: delete although smart services use the process model
+	//response:
+	//	409 {"error", "releases", "instances", "readable": [{"id", "design_id", "name"}]} while smart services use it
+	//	502 when the smart-service-repository cannot be asked; nothing is deleted then
 	router.DELETE(resource+"/:id", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
 		id := params.ByName("id")
+		force := false
+		if raw := request.URL.Query().Get("force"); raw != "" {
+			var err error
+			force, err = strconv.ParseBool(raw)
+			if err != nil {
+				http.Error(writer, "force must be true or false", http.StatusBadRequest)
+				return
+			}
+		}
 		token, err := auth.GetParsedToken(request)
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-		err, code := control.DeleteProcess(token, id)
+		err, code := control.DeleteProcess(token, id, force)
 		if err != nil {
+			var inUse *model.InUseError
+			if errors.As(err, &inUse) {
+				// http.Error would reduce the usage to text.
+				writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+				writer.WriteHeader(code)
+				encodeErr := json.NewEncoder(writer).Encode(model.InUseResponse{Error: inUse.Error(), ResourceUsage: inUse.Usage})
+				if encodeErr != nil {
+					config.GetLogger().Error("unable to encode response", "error", encodeErr)
+				}
+				return
+			}
 			http.Error(writer, err.Error(), code)
 			return
 		}

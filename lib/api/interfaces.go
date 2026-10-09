@@ -28,5 +28,5 @@ type Controller interface {
 	CreateProcess(token auth.Token, process model.Process) (model.Process, error, int)
 	UpdateProcess(token auth.Token, id string, process model.Process) (model.Process, error, int)
 	UpdateProcessPublic(token auth.Token, id string, public model.PublicCommand) (model.Process, error, int)
-	DeleteProcess(token auth.Token, id string) (error, int)
+	DeleteProcess(token auth.Token, id string, force bool) (error, int)
 }

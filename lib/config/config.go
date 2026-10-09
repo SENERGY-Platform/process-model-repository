@@ -33,23 +33,24 @@ import (
 )
 
 type Config struct {
-	ServerPort             string `json:"server_port"`
-	GroupId                string `json:"group_id"`
-	ProcessTopic           string `json:"process_topic"`
-	UsersTopic             string `json:"users_topic"`
-	PermissionsV2Url       string `json:"permissions_v2_url"`
-	MongoUrl               string `json:"mongo_url"`                      //full connection string incl. scheme; must not contain credentials
-	MongoUser              string `json:"mongo_user"`                     //empty: no authentication
-	MongoPassword          string `json:"mongo_password" config:"secret"` //required when MongoUser is set
-	MongoAuthSource        string `json:"mongo_auth_source"`              //database the user is defined in
-	MongoDatabase          string `json:"mongo_database"`                 //must not be empty
-	MongoReplSet           bool   `json:"mongo_repl_set"`                 //set true if mongodb is configured as replication set or mongos and is able to handle transactions
-	MongoProcessCollection string `json:"mongo_process_collection"`
-	Debug                  bool   `json:"debug"`
-	ConnectivityTest       bool   `json:"connectivity_test"`
-	KafkaUrl               string `json:"kafka_url"`
-	RunStartupMigration    bool   `json:"run_startup_migration"`
-	CleanupInterval        string `json:"cleanup_interval"`
+	ServerPort                string `json:"server_port"`
+	GroupId                   string `json:"group_id"`
+	ProcessTopic              string `json:"process_topic"`
+	UsersTopic                string `json:"users_topic"`
+	PermissionsV2Url          string `json:"permissions_v2_url"`
+	SmartServiceRepositoryUrl string `json:"smart_service_repository_url"`   //asked before a process model is deleted, whether smart services use it; must not be empty
+	MongoUrl                  string `json:"mongo_url"`                      //full connection string incl. scheme; must not contain credentials
+	MongoUser                 string `json:"mongo_user"`                     //empty: no authentication
+	MongoPassword             string `json:"mongo_password" config:"secret"` //required when MongoUser is set
+	MongoAuthSource           string `json:"mongo_auth_source"`              //database the user is defined in
+	MongoDatabase             string `json:"mongo_database"`                 //must not be empty
+	MongoReplSet              bool   `json:"mongo_repl_set"`                 //set true if mongodb is configured as replication set or mongos and is able to handle transactions
+	MongoProcessCollection    string `json:"mongo_process_collection"`
+	Debug                     bool   `json:"debug"`
+	ConnectivityTest          bool   `json:"connectivity_test"`
+	KafkaUrl                  string `json:"kafka_url"`
+	RunStartupMigration       bool   `json:"run_startup_migration"`
+	CleanupInterval           string `json:"cleanup_interval"`
 
 	InitTopics bool
 
@@ -65,9 +66,10 @@ func Load(location string) (config Config, err error) {
 		return config, err
 	}
 	config = Config{
-		MongoUrl:        "mongodb://localhost:27017",
-		MongoAuthSource: "admin",
-		MongoDatabase:   "process_repository",
+		MongoUrl:                  "mongodb://localhost:27017",
+		MongoAuthSource:           "admin",
+		MongoDatabase:             "process_repository",
+		SmartServiceRepositoryUrl: "http://api.smart-service-repository:8080",
 	}
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&config)
