@@ -16,8 +16,8 @@ github.com/SENERGY-Platform/go-service-base/struct-logger v0.8.0 h1:CxfCO1t2ADa0
 github.com/SENERGY-Platform/go-service-base/struct-logger v0.8.0/go.mod h1:kvsSQEb3MU78D+Sepf39nTmLcIJiO4FeFwlcdYZ/PyU=
 github.com/SENERGY-Platform/permissions-v2 v0.0.47 h1:TOaYhxAZmH006SYwF/dy2PkmRFn50moH/YnrWbF4pbI=
 github.com/SENERGY-Platform/permissions-v2 v0.0.47/go.mod h1:O0DTzApbQnXzDmyQ3KzievzjRF44xQ7n6qdbfQ36Qw8=
-github.com/SENERGY-Platform/service-commons v0.0.0-20260821114734-3e4578ac2358 h1:RGgwqd2PKoBCbW2aBdl43OO5O7JNC2LKE452Ihi4TdM=
-github.com/SENERGY-Platform/service-commons v0.0.0-20260821114734-3e4578ac2358/go.mod h1:k1Jia3JItpaM26/SY1ZGyoGhBE8EA5zQrkwSaiFZKGQ=
+github.com/SENERGY-Platform/service-commons v0.0.0-20261016083822-dec36fce00ad h1:89BGue8JorkeIPcrFnPExRO4hpwur1spF3ET63ORn3o=
+github.com/SENERGY-Platform/service-commons v0.0.0-20261016083822-dec36fce00ad/go.mod h1:k1Jia3JItpaM26/SY1ZGyoGhBE8EA5zQrkwSaiFZKGQ=
 github.com/beevik/etree v1.4.0 h1:oz1UedHRepuY3p4N5OjE0nK1WLCqtzHf25bxplKOHLs=
 github.com/beevik/etree v1.4.0/go.mod h1:cyWiXwGoasx60gHvtnEh5x8+uIjUVnjWqBvEnhnqKDA=
 github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874 h1:N7oVaKyGp8bttX0bfZGmcGkjz7DLQXhAn3DNd3T0ous=
