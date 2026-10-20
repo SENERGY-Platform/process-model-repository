@@ -29,6 +29,8 @@ func MongoTestServer(ctx context.Context, wg *sync.WaitGroup) (hostport string, 
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "mongo:8.0",
 			ExposedPorts: []string{"27017/tcp"},
+			// MongoDB 8 refuses to start on Linux 6.19 to 7.0.13 (SERVER-121912), which the CI runners use since 2026-10
+			Env: map[string]string{"GLIBC_TUNABLES": "glibc.pthread.rseq=1"},
 			WaitingFor: wait.ForAll(
 				wait.ForLog("Waiting for connections"),
 				wait.ForListeningPort("27017/tcp"),
