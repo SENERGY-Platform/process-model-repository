@@ -31,9 +31,11 @@ import (
 
 const processIdFieldName = "Id"
 const processPublicFieldName = "Publish"
+const processOwnerFieldName = "Owner"
 
 var processIdKey string
 var processPublicKey string
+var processOwnerKey string
 
 func init() {
 	var err error
@@ -42,6 +44,10 @@ func init() {
 		log.Fatal(err)
 	}
 	processPublicKey, err = getBsonFieldName(model.Process{}, processPublicFieldName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	processOwnerKey, err = getBsonFieldName(model.Process{}, processOwnerFieldName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -95,6 +101,16 @@ func (this *Mongo) SetProcess(ctx context.Context, process model.Process) error 
 	}
 	_, err := this.ProcessCollection().ReplaceOne(ctx, bson.M{processIdKey: process.Id}, process, options.Replace().SetUpsert(true))
 	return err
+}
+
+// SetProcessOwner changes only the owner: a concurrent content update is not overwritten, and
+// last_updated_unix stays because the smart-service-repository reads it as a content change.
+func (this *Mongo) SetProcessOwner(ctx context.Context, id string, owner string) (found bool, err error) {
+	result, err := this.ProcessCollection().UpdateOne(ctx, bson.M{processIdKey: id}, bson.M{"$set": bson.M{processOwnerKey: owner}})
+	if err != nil {
+		return false, err
+	}
+	return result.MatchedCount > 0, nil
 }
 
 func (this *Mongo) DeleteProcess(ctx context.Context, id string) error {

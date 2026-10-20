@@ -23,6 +23,7 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/SENERGY-Platform/permissions-v2/pkg/client"
@@ -181,6 +182,69 @@ func (this *Controller) UpdateProcessPublic(token auth.Token, id string, publicC
 		return result, err, http.StatusInternalServerError
 	}
 	return process, nil, http.StatusOK
+}
+
+var fullRights = client.PermissionsMap{Read: true, Write: true, Execute: true, Administrate: true}
+
+// SetProcessOwner moves the process model to owner, for administrators only. Owner first gets full
+// rights in permissions-v2, every other entry stays as stored; then the document's owner changes.
+// If the document write fails, owner merely holds extra rights and a repeat completes the move.
+// last_updated_unix stays: the smart-service-repository takes a newer one as a content change and
+// marks every release using the model as changed. Permissions are read and written back without
+// a version check, so a permission edit made in between is lost. An UpdateProcess that read the
+// document before the owner write puts the previous owner back; a repeat of the move fixes that.
+func (this *Controller) SetProcessOwner(token auth.Token, id string, owner string) (result model.Process, err error, code int) {
+	if !token.IsAdmin() {
+		return result, errors.New("access denied"), http.StatusForbidden
+	}
+	if owner == "" || strings.TrimSpace(owner) != owner {
+		return result, errors.New("owner must be a user id without surrounding whitespace"), http.StatusBadRequest
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT)
+	defer cancel()
+	process, exists, err := this.db.ReadProcess(ctx, id)
+	if err != nil {
+		return result, err, http.StatusInternalServerError
+	}
+	if !exists {
+		return result, errors.New("not found"), http.StatusNotFound
+	}
+
+	resource, err, _ := this.perm.GetResource(client.InternalAdminToken, this.config.ProcessTopic, id)
+	if err != nil {
+		// Also when permissions-v2 knows no entry: the cleanup deletes such a document, or it is
+		// being created right now and an entry written here would keep its creator out.
+		return result, err, http.StatusInternalServerError
+	}
+	permissions := resource.ResourcePermissions
+	if permissions.UserPermissions[owner] != fullRights {
+		if permissions.UserPermissions == nil {
+			permissions.UserPermissions = map[string]client.PermissionsMap{}
+		}
+		permissions.UserPermissions[owner] = fullRights
+		_, err, _ = this.perm.SetPermission(client.InternalAdminToken, this.config.ProcessTopic, id, permissions)
+		if err != nil {
+			return result, err, http.StatusInternalServerError
+		}
+	}
+
+	if process.Owner != owner {
+		found, err := this.db.SetProcessOwner(ctx, id, owner)
+		if err != nil {
+			return result, err, http.StatusInternalServerError
+		}
+		if !found {
+			return result, errors.New("not found"), http.StatusNotFound
+		}
+	}
+	result, exists, err = this.db.ReadProcess(ctx, id)
+	if err != nil {
+		return result, err, http.StatusInternalServerError
+	}
+	if !exists {
+		return result, errors.New("not found"), http.StatusNotFound
+	}
+	return result, nil, http.StatusOK
 }
 
 // DeleteProcess refuses with *model.InUseError (409) while smart services use the process model.

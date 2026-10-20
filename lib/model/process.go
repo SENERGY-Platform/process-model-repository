@@ -38,6 +38,10 @@ type PublicCommand struct {
 	Description string `json:"description"`
 }
 
+type OwnerCommand struct {
+	Owner string `json:"owner"`
+}
+
 func (process *Process) Validate() (err error) {
 	defer func() {
 		if r := recover(); r != nil && err == nil {

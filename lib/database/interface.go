@@ -25,6 +25,7 @@ type Database interface {
 	ReadProcess(ctx context.Context, id string) (result model.Process, exists bool, err error)
 	ReadAllPublicProcesses(ctx context.Context) ([]model.Process, error)
 	SetProcess(ctx context.Context, process model.Process) error
+	SetProcessOwner(ctx context.Context, id string, owner string) (found bool, err error)
 	DeleteProcess(ctx context.Context, id string) error
 	ListProcesses(ctx context.Context, options model.ListOptions) ([]model.Process, int64, error)
 	CheckIdList(ids []string) (missingInDb []string, missingInInput []string, err error)

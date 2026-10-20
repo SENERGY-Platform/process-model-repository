@@ -229,6 +229,40 @@ func ProcessEndpoints(config config.Config, control Controller, router *httprout
 		}
 	})
 
+	//administrators only: makes the user the owner of the process model; the id stays
+	//body:
+	//	{"owner": "<user id>"}
+	//effect:
+	//	the owner gets read, write, execute and administrate; all other permission entries stay
+	//response:
+	//	model.Process in body, as GET /processes/:id returns it
+	//	400 owner missing, 403 no admin, 404 unknown id
+	//	500 failed; repeating the request completes the move
+	router.PUT(resource+"/:id/owner", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
+		id := params.ByName("id")
+		var command model.OwnerCommand
+		err := json.NewDecoder(request.Body).Decode(&command)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		token, err := auth.GetParsedToken(request)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		result, err, code := control.SetProcessOwner(token, id, command.Owner)
+		if err != nil {
+			http.Error(writer, err.Error(), code)
+			return
+		}
+		writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		err = json.NewEncoder(writer).Encode(result)
+		if err != nil {
+			config.GetLogger().Error("unable to encode response", "error", err)
+		}
+	})
+
 	//query parameters:
 	//	force	true|false, default false; administrators only: delete although smart services use the process model
 	//response:
